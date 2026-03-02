@@ -1,0 +1,8 @@
+MetricName,DisplayName,Direction,HasTarget,TargetValue,Unit,DecimalPlaces
+ASSUR_NO_TARGET_HIGH,Assurance No Target (Higher),higher,no,,percent,2
+ASSUR_HIT_MISS_HIGH,Assurance Hit/Miss (Higher),higher,yes,,percent,2
+ASSUR_FAIL_HIGH,Assurance Fail (Higher),higher,yes,,percent,2
+ASSUR_PASS_HIGH,Assurance Pass (Higher),higher,yes,,percent,2
+ASSUR_PASS_LOW,Assurance Pass (Lower),lower,yes,,percent,2
+ASSUR_FAIL_LOW,Assurance Fail (Lower),lower,yes,,percent,2
+ASSUR_STEP_TARGET_HIGH,Assurance Step Target (Higher),higher,yes,,percent,2

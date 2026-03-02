@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mdcspc"
+version = "0.1.0"
+description = "NHS-friendly SPC toolkit (Making Data Count style) with XmR charts, special-cause rules, and icon summaries."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [
+  { name = "Adam" }
+]
+dependencies = [
+  "pandas>=2.2",
+  "matplotlib>=3.8",
+  "numpy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0",
+]
+
+[project.scripts]
+mdcspc = "mdcspc.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["mdcspc*"]
+
+[tool.setuptools.package-data]
+mdcspc = [
+  "resources/config/*.csv",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

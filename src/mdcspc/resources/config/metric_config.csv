@@ -1,0 +1,10 @@
+MetricName,DisplayName,Direction,HasTarget,TargetValue,Unit,DecimalPlaces
+AE_4hr_Performance,A&E 4-hour performance,higher,yes,95,percent,1
+RTT_18w_Performance,RTT 18-week performance,higher,yes,92,percent,1
+ED_Attendances,ED attendances,neutral,no,,count,0
+Complaints_Rate,Complaints per 1000 attendances,lower,no,,rate,2
+AE4hr,A&E 4-hour performance,higher,yes,95,percent,1
+31 days,Cancer 31 days,higher,yes,0.96,percent,4
+Admissions_Count,Admissions (count),higher,No,,count,0
+Readmission_Rate_per_1000,Readmission rate per 1000,higher,No,,rate,1
+Average_LOS_Days,Average length of stay (days),lower,No,,time,

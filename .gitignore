@@ -1,0 +1,31 @@
+# Python virtual environments
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging/build outputs
+build/
+dist/
+*.egg-info/
+
+# Local scratch / outputs
+working/
+
+# Big/binary artefacts (keep out of git)
+*.xlsm
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Test build scratch
+tests/data/_build_tmp/
+

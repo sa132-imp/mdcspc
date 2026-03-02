@@ -1,0 +1,4 @@
+Month,OrgCode,MetricName,Expected_Special_Cause,Expected_Special_Cause_Label
+01/01/2022,ORG_GOLD,GOLD_TREND_UP,FALSE,
+Month,OrgCode,MetricName,Expected_Special_Cause,Expected_Special_Cause_Label
+01/07/2022,ORG_GOLD,GOLD_TREND_UP,TRUE,trend
