@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional, Any, Callable, Dict
+from typing import Optional, Any, Callable, Dict, Tuple
+
+from importlib import resources
 
 
 def _try_import_export_spc_from_csv():
@@ -74,6 +76,123 @@ def _call_with_optional_kwargs(func: Callable[..., Any], kwargs: Dict[str, Any])
         raise
 
 
+# -------------------------
+# Config helpers (init/explain)
+# -------------------------
+
+_PACKAGED_CONFIG_FILES = (
+    "metric_config.csv",
+    "spc_target_config.csv",
+)
+
+
+def _packaged_config_traversable(filename: str):
+    """
+    Return a Traversable for a packaged config file inside the installed package.
+
+    Expected location in the package:
+      mdcspc/resources/config/<filename>
+    """
+    return resources.files("mdcspc").joinpath("resources", "config", filename)
+
+
+def _resolve_config_sources(config_dir: Optional[Path]) -> Dict[str, Tuple[str, Optional[Path]]]:
+    """
+    For each known config filename, decide where it will be loaded from.
+
+    Returns a mapping:
+      filename -> (source_label, filesystem_path_if_applicable)
+
+    Rules:
+      - If config_dir is provided and contains the file -> use that path
+      - Else -> packaged default (we return a temporary extracted path via as_file when needed)
+    """
+    out: Dict[str, Tuple[str, Optional[Path]]] = {}
+
+    for fname in _PACKAGED_CONFIG_FILES:
+        if config_dir is not None:
+            candidate = config_dir / fname
+            if candidate.exists():
+                out[fname] = ("config_dir override", candidate)
+                continue
+            else:
+                out[fname] = ("config_dir override (missing -> fallback to packaged default)", None)
+                continue
+
+        out[fname] = ("packaged default", None)
+
+    return out
+
+
+def _cmd_init_config(out_dir: Path, force: bool) -> int:
+    """
+    Copy packaged default config CSVs into out_dir.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for fname in _PACKAGED_CONFIG_FILES:
+        dest = out_dir / fname
+        if dest.exists() and not force:
+            print(
+                f"[ERROR] {dest} already exists. Use --force to overwrite.",
+                file=sys.stderr,
+            )
+            return 1
+
+    # Copy each packaged file
+    for fname in _PACKAGED_CONFIG_FILES:
+        dest = out_dir / fname
+        traversable = _packaged_config_traversable(fname)
+        # as_file handles wheels/zip installs
+        with resources.as_file(traversable) as src_path:
+            src_p = Path(src_path)
+            if not src_p.exists():
+                print(
+                    "[ERROR] Packaged config file missing from installation: "
+                    f"mdcspc/resources/config/{fname}",
+                    file=sys.stderr,
+                )
+                return 1
+            dest.write_bytes(src_p.read_bytes())
+
+    print(f"[INFO] Wrote config templates to: {out_dir}")
+    print("[INFO] Next steps:")
+    print(f"  1) Edit the CSVs in: {out_dir}")
+    print("  2) Run exports using: --config-dir <that folder>")
+    return 0
+
+
+def _cmd_explain_config(config_dir: Optional[Path]) -> int:
+    """
+    Print where configs will be loaded from and what exists/missing.
+    """
+    print("[INFO] mdcspc config resolution")
+    if config_dir is None:
+        print("[INFO] --config-dir not provided: using packaged defaults (unless you pass overrides).")
+    else:
+        print(f"[INFO] --config-dir provided: {config_dir}")
+
+    resolved = _resolve_config_sources(config_dir)
+
+    for fname in _PACKAGED_CONFIG_FILES:
+        label, path = resolved[fname]
+        if path is not None:
+            print(f"  - {fname}: {label} -> {path}")
+        else:
+            # Either packaged default, or missing in config_dir and will fall back
+            if label.startswith("config_dir override (missing"):
+                missing_path = (config_dir / fname) if config_dir is not None else None
+                print(f"  - {fname}: MISSING in config_dir -> {missing_path}")
+                print(f"           fallback: packaged default -> mdcspc/resources/config/{fname}")
+            else:
+                print(f"  - {fname}: packaged default -> mdcspc/resources/config/{fname}")
+
+    print("[INFO] Tip:")
+    print("  Run `mdcspc init-config --out ./mdcspc_config` to create editable templates,")
+    print("  then use `--config-dir ./mdcspc_config` when exporting.")
+    return 0
+
+
 def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mdcspc",
@@ -81,6 +200,33 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     )
 
     sub = parser.add_subparsers(dest="command", required=True)
+
+    # -------------------------
+    # init-config
+    # -------------------------
+    p_init = sub.add_parser(
+        "init-config",
+        help="Write editable config templates (metric_config.csv, spc_target_config.csv) to a folder.",
+    )
+    p_init.add_argument("--out", required=True, help="Output directory to write config templates into")
+    p_init.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing files if present",
+    )
+
+    # -------------------------
+    # explain-config
+    # -------------------------
+    p_explain = sub.add_parser(
+        "explain-config",
+        help="Explain where configs will be loaded from (config_dir overrides vs packaged defaults).",
+    )
+    p_explain.add_argument(
+        "--config-dir",
+        default=None,
+        help="Directory containing config files (metric_config.csv, spc_phase_config.csv, spc_target_config.csv, etc.).",
+    )
 
     # -------------------------
     # export-csv
@@ -150,6 +296,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = _build_parser(has_sqlite=export_spc_from_sqlite is not None)
     args = parser.parse_args(argv)
 
+    # Commands that don't need exporter imports
+    if args.command == "init-config":
+        return _cmd_init_config(out_dir=Path(args.out), force=bool(args.force))
+
+    if args.command == "explain-config":
+        config_dir_path = Path(args.config_dir) if getattr(args, "config_dir", None) else None
+        return _cmd_explain_config(config_dir=config_dir_path)
+
+    # Export commands below
     config_dir_path = Path(args.config_dir) if getattr(args, "config_dir", None) else None
     quiet = bool(getattr(args, "quiet", False))
 
