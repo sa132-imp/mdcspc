@@ -7,7 +7,7 @@ name = "mdcspc"
 version = "0.1.0"
 description = "NHS-friendly SPC toolkit (Making Data Count style) with XmR charts, special-cause rules, and icon summaries."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
   { name = "Adam" }
