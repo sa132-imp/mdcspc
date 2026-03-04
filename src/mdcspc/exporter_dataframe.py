@@ -64,7 +64,7 @@ def export_spc_from_dataframe(
     index_col: str = "Month",
     summary_filename: str = "spc_summary_from_input.csv",
     charts_subdir: str = "charts",
-    chart_mode: str = "xmr",
+    chart_mode: str = "x_only",
     quiet: bool = False,
 ) -> Tuple[pd.DataFrame, Any]:
     """
@@ -131,7 +131,7 @@ def export_spc_from_sqlite(
     index_col: str = "Month",
     summary_filename: str = "spc_summary_from_input.csv",
     charts_subdir: str = "charts",
-    chart_mode: str = "xmr",
+    chart_mode: str = "x_only",
     quiet: bool = False,
 ) -> Tuple[pd.DataFrame, Any]:
     """
@@ -165,3 +165,4 @@ __all__ = [
     "export_spc_from_dataframe",
     "export_spc_from_sqlite",
 ]
+

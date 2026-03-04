@@ -1,67 +1,51 @@
-import os
-import sys
+from __future__ import annotations
+
+from pathlib import Path
+
 import pandas as pd
 
-# Ensure project root is on sys.path
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+def test_full_flow_from_csv_writes_summary_and_charts(tmp_path: Path) -> None:
+    """
+    End-to-end-ish library test (no CLI):
 
-from mdcspc import analyse_xmr_by_group, summarise_xmr_by_group, plot_xmr
+    - Load the golden input CSV
+    - Run the exporter
+    - Assert summary CSV is created
+    - Assert at least one chart PNG is created
 
+    This avoids any GUI operations and does not depend on working/.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    input_csv = project_root / "tests" / "data" / "xmr_golden_input.csv"
 
-def main():
-    # 1) Load the multi-org AE4hr example CSV
-    csv_path = os.path.join(PROJECT_ROOT, "working", "ae4hr_multi_org_example.csv")
+    assert input_csv.exists(), f"Missing test input CSV: {input_csv}"
 
-    df = pd.read_csv(
-        csv_path,
-        parse_dates=["Month"],
-        dayfirst=True,
-    )
+    # Import inside the test so failures are reported cleanly by pytest
+    from mdcspc.exporter import export_spc_from_csv
 
-    # 2) Run multi-series XmR analysis grouped by OrgCode + MetricName
-    multi = analyse_xmr_by_group(
-        data=df,
+    out_dir = tmp_path / "full_flow_out"
+
+    export_spc_from_csv(
+        input_csv=input_csv,
+        working_dir=out_dir,
+        config_dir=project_root / "config",
+        chart_mode="x_only",  # default behaviour we want most of the time
         value_col="Value",
         index_col="Month",
-        group_cols=["OrgCode", "MetricName"],
-        baseline_mode="all",
-        baseline_points=None,
-        min_points_for_spc=10,
-        shift_length=6,
-        trend_length=6,
-        rules=("trend", "shift", "2of3", "astronomical"),
+        summary_filename="spc_summary_from_input.csv",
+        quiet=True,
     )
 
-    # 3) Build the summary table (placeholder variation/assurance logic)
-    summary = summarise_xmr_by_group(
-        multi,
-        direction="higher_is_better",
-        lookback_points=12,
-    )
+    summary_path = out_dir / "spc_summary_from_input.csv"
+    charts_dir = out_dir / "charts"
 
-    print("\n=== Full-flow summary table from ae4hr_multi_org_example.csv ===\n")
-    print(summary)
+    assert summary_path.exists(), f"Expected summary CSV not found: {summary_path}"
+    assert charts_dir.exists(), f"Expected charts directory not found: {charts_dir}"
 
-    # 4) Plot one org's chart (e.g. RKB AE4hr) so you can eyeball it
-    # Find the group key for OrgCode='RKB', MetricName='AE4hr'
-    key = ("RKB", "AE4hr")
-    if key in multi.by_group:
-        rkb_result = multi.by_group[key]
-        plot_xmr(
-            rkb_result,
-            value_label="AE 4hr %",
-            title="RKB AE 4hr – XmR chart (example full flow)",
-            figsize=(10, 5),
-            show=True,
-        )
-    else:
-        print("\n[Warning] Could not find group ('RKB', 'AE4hr') in multi.by_group.\n")
+    pngs = list(charts_dir.glob("*.png"))
+    assert pngs, f"Expected at least one chart PNG in: {charts_dir}"
 
-
-if __name__ == "__main__":
-    main()
-
+    # Optional sanity: summary has at least one row
+    df = pd.read_csv(summary_path)
+    assert len(df) > 0, "Summary CSV is empty."

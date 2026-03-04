@@ -591,7 +591,7 @@ def _plot_mdc_chart_for_series(
     icons_dir: Path,
     targets_by_group: Optional[Dict[Tuple, pd.Series]],
     metric_configs: Optional[Dict[str, Any]],
-    chart_mode: str = "xmr",
+    chart_mode: str = "x_only",
 ) -> None:
     """
     Create an MDC-style chart for a single series.
@@ -1043,7 +1043,7 @@ def export_spc_from_csv(
     index_col: str = "Month",
     summary_filename: str = "spc_summary_from_input.csv",
     charts_subdir: str = "charts",
-    chart_mode: str = "xmr",
+    chart_mode: str = "x_only",
     quiet: bool = False,
 ) -> Tuple[pd.DataFrame, Any]:
     """
@@ -1207,4 +1207,5 @@ def export_spc_from_csv(
     finally:
         # Always restore print()
         builtins.print = _orig_print
+
 

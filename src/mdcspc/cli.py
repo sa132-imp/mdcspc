@@ -247,7 +247,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
         action="store_true",
         help="Suppress chatter; still prints final '[INFO] Done.' only.",
     )
-    p_csv.add_argument("--chart-mode", default="xmr", choices=["xmr", "x_only"], help="Chart mode")
+    p_csv.add_argument("--chart-mode", default="x_only", choices=["xmr", "x_only"], help="Chart mode")
     p_csv.add_argument("--value-col", default="Value", help="Value column name in the input")
     p_csv.add_argument("--index-col", default="Month", help="Date/index column name in the input")
     p_csv.add_argument(
@@ -276,7 +276,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
         action="store_true",
         help="Suppress chatter; still prints final '[INFO] Done.' only.",
     )
-    p_sql.add_argument("--chart-mode", default="xmr", choices=["xmr", "x_only"], help="Chart mode")
+    p_sql.add_argument("--chart-mode", default="x_only", choices=["xmr", "x_only"], help="Chart mode")
     p_sql.add_argument("--value-col", default="Value", help="Value column name in the query result")
     p_sql.add_argument("--index-col", default="Month", help="Date/index column name in the query result")
     p_sql.add_argument(
@@ -372,3 +372,4 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
