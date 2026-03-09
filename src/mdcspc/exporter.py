@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.dates as mdates
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, FixedLocator
 
 from . import analyse_xmr_by_group, summarise_xmr_by_group
 from .metric_config import load_metric_config, get_metric_config
+
+from .xmr import analyse_xmr
 
 """
 mdcspc.exporter
@@ -27,12 +29,12 @@ DEFAULT_WORKING_DIR = DEFAULT_PROJECT_ROOT / "working"
 DEFAULT_ASSETS_DIR = DEFAULT_PROJECT_ROOT / "assets"
 
 
-
-
 def _log(quiet: bool, msg: str) -> None:
     """Internal print helper that respects quiet mode."""
     if not quiet:
         print(msg)
+
+
 # -------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------
@@ -172,6 +174,7 @@ def _load_phase_config(
     _log(quiet, f"[INFO] Phase configuration loaded for {len(phase_starts)} series.")
     return phase_starts
 
+
 # -------------------------------------------------------------------
 # Direction configuration from central metric_config
 # -------------------------------------------------------------------
@@ -181,7 +184,8 @@ def _build_directions_by_group_from_metric_config(
     multi: Any,
     group_cols: Sequence[str],
     metric_configs: Optional[Dict[str, Any]],
-    quiet: bool = False) -> Optional[Dict[Tuple, str]]:
+    quiet: bool = False,
+) -> Optional[Dict[Tuple, str]]:
     """
     Build directions_by_group mapping from central metric_config.
 
@@ -189,7 +193,10 @@ def _build_directions_by_group_from_metric_config(
     Values: direction string ("higher_is_better", "lower_is_better", "neutral")
     """
     if not metric_configs:
-        _log(quiet, "[INFO] metric_config: no central metric config available for directions; using global default direction only.")
+        _log(
+            quiet,
+            "[INFO] metric_config: no central metric config available for directions; using global default direction only.",
+        )
         return None
 
     if "MetricName" not in group_cols:
@@ -269,7 +276,8 @@ def _load_target_config(
     config_dir: Path,
     working_dir: Path,
     group_cols: Sequence[str],
-    quiet: bool = False) -> Optional[pd.DataFrame]:
+    quiet: bool = False,
+) -> Optional[pd.DataFrame]:
     """
     Load optional target configuration, preferring:
 
@@ -368,9 +376,7 @@ def _build_targets_by_group(
             temp_map[key_tuple] = pairs
 
     if not temp_map:
-        print(
-            "[INFO] Target config loaded, but no valid EffectiveFrom/TargetValue pairs found."
-        )
+        print("[INFO] Target config loaded, but no valid EffectiveFrom/TargetValue pairs found.")
         return None
 
     targets_by_group: Dict[Tuple, pd.Series] = {}
@@ -592,6 +598,16 @@ def _plot_mdc_chart_for_series(
     targets_by_group: Optional[Dict[Tuple, pd.Series]],
     metric_configs: Optional[Dict[str, Any]],
     chart_mode: str = "x_only",
+    index_label: str = "Month",
+    title_template: str = "{MetricName}",
+    y_label: Optional[str] = None,
+    y_min: Optional[float] = None,
+    y_max: Optional[float] = None,
+    x_label_rotate: int = 90,
+    x_label_fontsize: int = 8,
+    x_label_format: Optional[str] = None,
+    annotate_last_point: bool = False,
+    annotate_special_cause: bool = False,
 ) -> None:
     """
     Create an MDC-style chart for a single series.
@@ -604,12 +620,33 @@ def _plot_mdc_chart_for_series(
     if df.empty:
         return
 
-    chart_mode = (chart_mode or "xmr").lower()
+    chart_mode = (chart_mode or "x_only").lower()
     if chart_mode not in ("x_only", "xmr"):
-        chart_mode = "xmr"
+        chart_mode = "x_only"
 
-    title_parts = [str(v) for v in group_values]
-    title = " – ".join(title_parts + ["XmR chart"])
+    # Build title from a user-friendly template.
+    # Template can reference group column names, e.g. "{OrgCode} – {MetricName}".
+    context = {str(col): str(val) for col, val in zip(group_cols, group_values)}
+    # Common convenience aliases
+    if "MetricName" in context:
+        context.setdefault("metric", context["MetricName"])
+    if "OrgCode" in context:
+        context.setdefault("org", context["OrgCode"])
+
+    title_core: str
+    try:
+        title_core = str(title_template or "").format_map(context).strip()
+    except Exception:
+        title_core = ""
+
+    if not title_core:
+        # Fallback: join group values
+        title_core = " – ".join(str(v) for v in group_values)
+
+    if chart_mode == "xmr":
+        title = f"{title_core} – XmR chart"
+    else:
+        title = f"{title_core} – X chart"
 
     filename_base = _safe_filename(group_values)
     filename = f"{filename_base}.png"
@@ -635,16 +672,8 @@ def _plot_mdc_chart_for_series(
         assurance_icon_name = ""
         target_value_static = float("nan")
 
-    variation_icon_path = (
-        icons_dir / str(variation_icon_name)
-        if variation_icon_name
-        else Path()
-    )
-    assurance_icon_path = (
-        icons_dir / str(assurance_icon_name)
-        if assurance_icon_name
-        else Path()
-    )
+    variation_icon_path = (icons_dir / str(variation_icon_name) if variation_icon_name else Path())
+    assurance_icon_path = (icons_dir / str(assurance_icon_name) if assurance_icon_name else Path())
 
     target_series = None
     if targets_by_group is not None and key_tuple in targets_by_group:
@@ -673,9 +702,6 @@ def _plot_mdc_chart_for_series(
     unit_norm = (unit or "").strip().lower()
 
     # If DecimalPlaces is not configured, choose a sensible default:
-    # - Unit == "count"   -> 0 dp (whole people/episodes)
-    # - Unit == "percent" -> 1 dp
-    # - everything else   -> 1 dp
     if decimal_places is None:
         if unit_norm == "count":
             decimal_places = 0
@@ -688,18 +714,12 @@ def _plot_mdc_chart_for_series(
     if unit_norm == "percent":
         candidate_vals: List[float] = []
         if value_col in df.columns:
-            candidate_vals.extend(
-                [float(v) for v in df[value_col].dropna().tolist()]
-            )
+            candidate_vals.extend([float(v) for v in df[value_col].dropna().tolist()])
         for col in ("mean", "ucl", "lcl"):
             if col in df.columns:
-                candidate_vals.extend(
-                    [float(v) for v in df[col].dropna().tolist()]
-                )
+                candidate_vals.extend([float(v) for v in df[col].dropna().tolist()])
         if target_series is not None:
-            candidate_vals.extend(
-                [float(v) for v in target_series.dropna().tolist()]
-            )
+            candidate_vals.extend([float(v) for v in target_series.dropna().tolist()])
         if not pd.isna(target_value_static):
             candidate_vals.append(float(target_value_static))
 
@@ -910,16 +930,64 @@ def _plot_mdc_chart_for_series(
         zorder=2,
     )
 
-    ax_x.set_title(title)
-    ax_x.set_xlabel("Month")
-    ylabel = value_col
-    if unit_norm == "percent":
-        ylabel = f"{ylabel} (%)"
-    ax_x.set_ylabel(ylabel)
+    # Optional annotations
+    if annotate_last_point and len(df) > 0:
+        last_idx = df.index[-1]
+        last_val = df[value_col].iloc[-1]
+        if pd.notna(last_val):
+            ax_x.annotate(
+                f"{float(last_val):.{int(decimal_places or 1)}f}",
+                xy=(last_idx, last_val),
+                xytext=(6, 6),
+                textcoords="offset points",
+                fontsize=9,
+                ha="left",
+                va="bottom",
+            )
 
-    ymin, ymax = ax_x.get_ylim()
-    span = ymax - ymin if ymax > ymin else 1.0
-    ax_x.set_ylim(ymin, ymax + 0.20 * span)
+    if annotate_special_cause and "special_cause" in df.columns:
+        sc_mask = df["special_cause"].astype(bool)
+        if sc_mask.any():
+            for idx_sc, row_sc in df.loc[sc_mask].iterrows():
+                val_sc = row_sc.get(value_col, float("nan"))
+                if pd.isna(val_sc):
+                    continue
+                label_sc = str(row_sc.get("special_cause_label", "") or "").strip()
+                if not label_sc:
+                    label_sc = "SC"
+                ax_x.annotate(
+                    label_sc,
+                    xy=(idx_sc, val_sc),
+                    xytext=(0, 10),
+                    textcoords="offset points",
+                    fontsize=8,
+                    ha="center",
+                    va="bottom",
+                )
+
+    ax_x.set_title(title)
+    ax_x.set_xlabel(index_label)
+    ylabel_final = y_label if (y_label is not None and str(y_label).strip() != "") else value_col
+    if unit_norm == "percent":
+        ylabel_final = f"{ylabel_final} (%)"
+    ax_x.set_ylabel(ylabel_final)
+
+    ymin_auto, ymax_auto = ax_x.get_ylim()
+    span = ymax_auto - ymin_auto if ymax_auto > ymin_auto else 1.0
+    ymin_new = ymin_auto
+    ymax_new = ymax_auto + 0.20 * span
+
+    if y_min is not None:
+        ymin_new = float(y_min)
+    if y_max is not None:
+        ymax_new = float(y_max)
+
+    # If user supplied an inverted range, fall back to auto+padded.
+    if ymax_new <= ymin_new:
+        ymin_new = ymin_auto
+        ymax_new = ymax_auto + 0.20 * span
+
+    ax_x.set_ylim(ymin_new, ymax_new)
 
     # -----------------------
     # mR chart
@@ -984,25 +1052,53 @@ def _plot_mdc_chart_for_series(
                 )
 
         ax_mr.set_ylabel("Moving range")
-        ax_mr.set_xlabel("Month")
+        ax_mr.set_xlabel(index_label)
 
     # -----------------------
     # Shared axis formatting
     # -----------------------
+        # -----------------------
+    # Shared axis formatting
+    # -----------------------
     if isinstance(x, pd.DatetimeIndex):
-        ax_x.xaxis.set_major_locator(mdates.MonthLocator())
-        ax_x.xaxis.set_major_formatter(mdates.DateFormatter("%b-%y"))
-        for lbl in ax_x.get_xticklabels():
-            lbl.set_rotation(90)
-            lbl.set_ha("right")
-            lbl.set_fontsize(8)
+        # Show every observation date (do not silently downsample ticks).
+        # Choose a sensible default label format if not provided:
+        # - If typical gap is ~monthly or more -> Mon-YY
+        # - Otherwise -> DD/MM/YY
+        fmt = x_label_format
+        if fmt is None:
+            diffs = pd.Series(x).diff().dropna()
+            if not diffs.empty:
+                median_days = diffs.dt.total_seconds().median() / 86400.0
+            else:
+                median_days = 999.0
+            fmt = "%b-%y" if median_days >= 20 else "%d/%m/%y"
+
+        # Use real datetime ticks + a DateFormatter (more robust than date2num + manual labels)
+        tick_dates = x.to_pydatetime()
+
+        # Apply to the X axis, and also to mR if present (sharex helps, but be explicit)
+        axes_to_format = [ax_x]
+        if chart_mode == "xmr" and ax_mr is not None:
+            axes_to_format.append(ax_mr)
+
+        locator = FixedLocator(mdates.date2num(tick_dates))
+        formatter = mdates.DateFormatter(fmt)
+
+        for ax in axes_to_format:
+            ax.xaxis.set_major_locator(locator)
+            ax.xaxis.set_major_formatter(formatter)
+            for lbl in ax.get_xticklabels():
+                lbl.set_rotation(int(x_label_rotate))
+                lbl.set_ha("right")
+                lbl.set_fontsize(int(x_label_fontsize))
     else:
         ax_x.set_xticks(range(len(x)))
         ax_x.set_xticklabels([str(v) for v in x])
         for lbl in ax_x.get_xticklabels():
-            lbl.set_rotation(90)
+            lbl.set_rotation(int(x_label_rotate))
             lbl.set_ha("right")
-            lbl.set_fontsize(8)
+            lbl.set_fontsize(int(x_label_fontsize))
 
     # decimal_places should always be set by now, but guard anyway
     if decimal_places is None:
@@ -1034,6 +1130,7 @@ def _plot_mdc_chart_for_series(
 # Public API
 # -------------------------------------------------------------------
 
+
 def export_spc_from_csv(
     input_csv: Union[str, Path],
     working_dir: Optional[Union[str, Path]] = None,
@@ -1044,6 +1141,15 @@ def export_spc_from_csv(
     summary_filename: str = "spc_summary_from_input.csv",
     charts_subdir: str = "charts",
     chart_mode: str = "x_only",
+    title_template: str = "{MetricName}",
+    y_label: Optional[str] = None,
+    y_min: Optional[float] = None,
+    y_max: Optional[float] = None,
+    x_label_rotate: int = 90,
+    x_label_fontsize: int = 8,
+    x_label_format: Optional[str] = None,
+    annotate_last_point: bool = False,
+    annotate_special_cause: bool = False,
     quiet: bool = False,
 ) -> Tuple[pd.DataFrame, Any]:
     """
@@ -1118,7 +1224,7 @@ def export_spc_from_csv(
         print(f"[INFO] Using group columns: {group_cols}")
 
         try:
-            metric_configs = load_metric_config()
+            metric_configs = load_metric_config(config_dir=config_dir_path)
             print(f"[INFO] metric_config: loaded {len(metric_configs)} metric config(s).")
         except Exception as e:
             print(
@@ -1128,7 +1234,6 @@ def export_spc_from_csv(
             )
             metric_configs = None
 
-        # IMPORTANT: pass config_dir as well (new signature)
         phase_starts = _load_phase_config(
             config_dir=config_dir_path,
             working_dir=working_dir_path,
@@ -1172,6 +1277,7 @@ def export_spc_from_csv(
             lookback_points=12,
             directions_by_group=directions_by_group,
             targets_by_group=targets_by_group,
+            metric_configs=metric_configs,
         )
 
         summary_path = working_dir_path / summary_filename
@@ -1180,12 +1286,65 @@ def export_spc_from_csv(
 
         print("[INFO] Generating MDC-style charts for each series.")
 
+        # Recompute any configured phased series using canonical phase config
+        phase_starts_lookup = phase_starts or {}
+
+        for key, group_result in multi.by_group.items():
+            df_metric = group_result.data.copy()
+            metric_phase_dates = phase_starts_lookup.get(key, [])
+
+            # Ensure index column exists for analyse_xmr (avoid duplicate Month)
+            if index_col is not None:
+                if index_col in df_metric.columns:
+                    pass
+                else:
+                    if df_metric.index.name == index_col or df_metric.index.name is None:
+                        df_metric = df_metric.reset_index()
+                        if df_metric.columns[0] != index_col:
+                            df_metric.rename(columns={df_metric.columns[0]: index_col}, inplace=True)
+                    else:
+                        df_metric[index_col] = df_metric.index
+
+            # Recompute XmR for this series using configured phase starts
+            recomputed_result = analyse_xmr(
+                data=df_metric,
+                value_col=value_col,
+                index_col=index_col,
+                phase_starts=metric_phase_dates,
+                baseline_mode=group_result.config.baseline_mode,
+                baseline_points=group_result.config.baseline_points,
+                shift_length=group_result.config.shift_length,
+                trend_length=group_result.config.trend_length,
+                rules=group_result.config.rules,
+            )
+
+            # Reattach group columns
+            for gc, val in zip(multi.config.group_cols, key):
+                recomputed_result.data[gc] = val
+
+            # Replace group_result data with recomputed stats
+            group_result.data = recomputed_result.data
+
+        summary = summarise_xmr_by_group(
+            multi,
+            direction="higher_is_better",
+            lookback_points=12,
+            directions_by_group=directions_by_group,
+            targets_by_group=targets_by_group,
+            metric_configs=metric_configs,
+        )
+
+        summary.to_csv(working_dir_path / summary_filename, index=False)
+
+        # End phased recomputation pass
+
         value_col_final = multi.config.value_col
         n_series = 0
 
         for key, group_result in multi.by_group.items():
             n_series += 1
             group_values = list(key)
+
             _plot_mdc_chart_for_series(
                 key_tuple=key,
                 group_result=group_result,
@@ -1198,14 +1357,24 @@ def export_spc_from_csv(
                 targets_by_group=targets_by_group,
                 metric_configs=metric_configs,
                 chart_mode=chart_mode,
+                index_label=index_col,
+                title_template=title_template,
+                y_label=y_label,
+                y_min=y_min,
+                y_max=y_max,
+                x_label_rotate=x_label_rotate,
+                x_label_fontsize=x_label_fontsize,
+                x_label_format=x_label_format,
+                annotate_last_point=annotate_last_point,
+                annotate_special_cause=annotate_special_cause,
             )
 
         print(f"[INFO] Generated {n_series} chart file(s) in: {charts_dir}\n")
+
+
 
         return summary, multi
 
     finally:
         # Always restore print()
         builtins.print = _orig_print
-
-
