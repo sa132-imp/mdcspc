@@ -1,0 +1,4 @@
+MetricName,DisplayName,Direction,HasTarget,TargetValue,Unit,DecimalPlaces,ChartMode,UseBaseline,BaselinePoints
+Metric1,Metric1,lower,no,,count,0,x_only,False,12
+Metric2,Metric2,higher,no,,rate,1,x_only,False,12
+test1,test1,neutral,no,,percent,2,x_only,False,12

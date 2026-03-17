@@ -98,7 +98,6 @@ def _call_with_optional_kwargs(func: Callable[..., Any], kwargs: Dict[str, Any])
 
 _PACKAGED_CONFIG_FILES = (
     "metric_config.csv",
-    "spc_phase_config.csv",
     "spc_target_config.csv",
 )
 
@@ -205,10 +204,8 @@ def _cmd_explain_config(config_dir: Optional[Path]) -> int:
                 print(f"  - {fname}: packaged default -> mdcspc/resources/config/{fname}")
 
     print("[INFO] Tip:")
-    print("  Run `mdcspc init-config --out ./mdcspc_config` to create editable metric/target templates,")
-    print("  or use `mdcspc wizard --input <csv> --out-config ./mdcspc_config` to generate starter config from data.")
-    print("  `spc_phase_config.csv` is created when you add recalcs, or you can create/edit it manually.")
-    print("  Then use `--config-dir ./mdcspc_config` when exporting.")
+    print("  Run `mdcspc init-config --out ./mdcspc_config` to create editable templates,")
+    print("  then use `--config-dir ./mdcspc_config` when exporting.")
     return 0
 
 
@@ -225,7 +222,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     # -------------------------
     p_init = sub.add_parser(
         "init-config",
-        help="Write editable config templates (metric_config.csv, spc_phase_config.csv, spc_target_config.csv) to a folder.",
+        help="Write editable config templates (metric_config.csv, spc_target_config.csv) to a folder.",
     )
     p_init.add_argument("--out", required=True, help="Output directory to write config templates into")
     p_init.add_argument(
@@ -356,7 +353,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_csv.add_argument(
         "--x-label-format",
         default=None,
-        help="Optional strftime format for x-axis labels (e.g. '%%d/%%m/%%y'). If omitted, mdcspc chooses a sensible default.",
+        help="Optional strftime format for x-axis labels (e.g. '%d/%m/%y'). If omitted, mdcspc chooses a sensible default.",
     )
     p_csv.add_argument(
         "--annotate-last-point",
@@ -425,7 +422,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_sql.add_argument(
         "--x-label-format",
         default=None,
-        help="Optional strftime format for x-axis labels (e.g. '%%d/%%m/%%y'). If omitted, mdcspc chooses a sensible default.",
+        help="Optional strftime format for x-axis labels (e.g. '%d/%m/%y'). If omitted, mdcspc chooses a sensible default.",
     )
     p_sql.add_argument(
         "--annotate-last-point",

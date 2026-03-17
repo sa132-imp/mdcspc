@@ -608,6 +608,7 @@ def _plot_mdc_chart_for_series(
     x_label_format: Optional[str] = None,
     annotate_last_point: bool = False,
     annotate_special_cause: bool = False,
+    phase_annotations: list[dict] | None = None,
 ) -> None:
     """
     Create an MDC-style chart for a single series.
@@ -773,11 +774,14 @@ def _plot_mdc_chart_for_series(
             ucl_val = g["ucl"].dropna().iloc[0] if g["ucl"].notna().any() else None
             lcl_val = g["lcl"].dropna().iloc[0] if g["lcl"].notna().any() else None
 
+            phase_start_idx = g.index.min()
+            phase_end_idx = g.index.max()
+
             if mean_val is not None:
                 ax_x.hlines(
                     mean_val,
-                    xmin=g.index.min(),
-                    xmax=g.index.max(),
+                    xmin=phase_start_idx,
+                    xmax=phase_end_idx,
                     colors="#000000",
                     linestyles="-",
                     linewidth=2.0,
@@ -786,8 +790,8 @@ def _plot_mdc_chart_for_series(
             if ucl_val is not None:
                 ax_x.hlines(
                     ucl_val,
-                    xmin=g.index.min(),
-                    xmax=g.index.max(),
+                    xmin=phase_start_idx,
+                    xmax=phase_end_idx,
                     colors="#777777",
                     linestyles="dashed",
                     linewidth=1.5,
@@ -796,13 +800,62 @@ def _plot_mdc_chart_for_series(
             if lcl_val is not None:
                 ax_x.hlines(
                     lcl_val,
-                    xmin=g.index.min(),
-                    xmax=g.index.max(),
+                    xmin=phase_start_idx,
+                    xmax=phase_end_idx,
                     colors="#777777",
                     linestyles="dashed",
                     linewidth=1.5,
                     zorder=0,
                 )
+
+            # -----------------------
+            # Phase annotation text
+            # -----------------------
+            if phase_annotations:
+                matching_annotations = [
+                    ann for ann in phase_annotations
+                    if pd.to_datetime(ann.get("phase_start")).normalize() == pd.to_datetime(phase_start_idx).normalize()
+                ]
+
+                for ann in matching_annotations:
+                    show_box = ann.get("show_on_chart", False)
+                    annotation_text = str(ann.get("annotation", "")).strip()
+                    position = str(ann.get("AnnotationPosition", "L")).strip().upper() or "L"
+
+                    if not show_box or not annotation_text:
+                        continue
+
+                    phase_span = float(ucl_val - lcl_val) if (ucl_val is not None and lcl_val is not None) else None
+                    if phase_span is None or phase_span <= 0:
+                        phase_span = float(df[value_col].max() - df[value_col].min()) if len(df) else 1.0
+                        if phase_span <= 0:
+                            phase_span = 1.0
+
+                    if position == "U" and ucl_val is not None:
+                        y_pos = ucl_val + 0.12 * phase_span
+                    elif lcl_val is not None:
+                        y_pos = lcl_val - 0.12 * phase_span
+                    else:
+                        y_pos = mean_val if mean_val is not None else df[value_col].iloc[-1]
+
+                    words = annotation_text.split()
+                    if len(words) > 3:
+                        mid = len(words) // 2
+                        text_to_show = " ".join(words[:mid]) + "\n" + " ".join(words[mid:])
+                    else:
+                        text_to_show = annotation_text
+
+                    ax_x.text(
+                        phase_start_idx + (phase_end_idx - phase_start_idx) / 2,
+                        y_pos,
+                        text_to_show,
+                        ha="center",
+                        va="center",
+                        fontsize=7,
+                        color="#555555",
+                        zorder=2,
+                    )
+
     else:
         if "mean" in df.columns and df["mean"].notna().any():
             mean_val = df["mean"].dropna().iloc[0]
@@ -1345,6 +1398,36 @@ def export_spc_from_csv(
             n_series += 1
             group_values = list(key)
 
+            # Build phase annotations for this series
+            phase_annotations = []
+            phase_cfg_path = config_dir_path / "spc_phase_config.csv"
+            if phase_cfg_path.exists():
+                df_phase = pd.read_csv(phase_cfg_path)
+
+                # Filter rows for this series
+                df_series_phase = df_phase[
+                    (df_phase["OrgCode"] == key[0]) & (df_phase["MetricName"] == key[1])
+                ].copy()
+
+                for _, row in df_series_phase.iterrows():
+                    phase_start = pd.to_datetime(row["PhaseStart"]).normalize()
+                    annotation_text = str(row.get("Annotation", "")).strip()
+
+                    raw_show = str(row.get("ShowOnChart", "")).strip().lower()
+                    show_on_chart = raw_show in {"true", "1", "yes", "y"}
+
+                    annotation_position = str(
+                        row.get("AnnotationPosition", "L")
+                    ).strip().upper() or "L"
+
+                    phase_annotations.append({
+                        "phase_start": phase_start,
+                        "annotation": annotation_text,
+                        "show_on_chart": show_on_chart,
+                        "AnnotationPosition": annotation_position,
+                    })
+
+            # Call plotting function with phase annotations
             _plot_mdc_chart_for_series(
                 key_tuple=key,
                 group_result=group_result,
@@ -1367,11 +1450,10 @@ def export_spc_from_csv(
                 x_label_format=x_label_format,
                 annotate_last_point=annotate_last_point,
                 annotate_special_cause=annotate_special_cause,
+                phase_annotations=phase_annotations,  # NEW ARG
             )
 
         print(f"[INFO] Generated {n_series} chart file(s) in: {charts_dir}\n")
-
-
 
         return summary, multi
 

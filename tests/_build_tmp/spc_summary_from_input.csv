@@ -1,0 +1,3 @@
+OrgCode,MetricName,n_points,last_date,last_value,mean_latest,lcl_latest,ucl_latest,direction,target_value,variation_key,variation_colour,variation_side,variation_icon,variation_status,last_special_cause,last_special_cause_rule,assurance_key,assurance_colour,assurance_icon,assurance_status,any_special_cause_in_lookback
+OrgA,Metric1,28,2026-04-01,34.0,32.166666666666664,13.549645390070918,50.78368794326241,higher_is_better,,common_cause,grey,none,VariationIconCommonCause.png,,False,,,,IconEmpty.png,no_target,False
+OrgA,Metric2,28,2026-04-01,1.79,1.6225000000000003,1.3565425531914896,1.888457446808511,higher_is_better,,common_cause,grey,none,VariationIconCommonCause.png,,False,,,,IconEmpty.png,no_target,False

@@ -1,32 +1,37 @@
 # SPC Exporter – Usage & Configuration
 
-This document explains how to use the SPC exporter in this repo, how the config files fit together, and what the inputs/outputs look like.
-
-The exporter is implemented in:
-
-- `mdcspc/exporter.py` (library API)
-- `scripts/export_spc_from_csv.py` (CLI wrapper)
+This document explains how to run `mdcspc` to generate MDC-style SPC outputs (currently **XmR**, with a default of **X-only** charts), how configuration works, and what files you get out the other end.
 
 ---
 
-## 1. What the exporter does
+## What you get
 
-Given a long-format CSV of metric data, the exporter will:
+Given long-format time-series data, `mdcspc` will:
 
-1. Run multi-series XmR analysis (one chart per series).
-2. Apply MDC-style colouring and classification:
-   - Common cause vs special cause
-   - Improvement vs concern vs neutral
-   - Assurance based on target vs limits
-3. Save:
-   - A **summary CSV** (one row per series) with MDC-friendly fields.
-   - One **PNG XmR chart** per series with coloured dots and icons.
+- run XmR analysis per series (special-cause rules)
+- classify variation/assurance and pick MDC-style icons
+- write:
+  - a **summary CSV** (one row per series)
+  - one **PNG chart per series** in a `charts/` folder
 
 ---
 
-## 2. Input data (the main CSV)
+## Inputs
 
-By default, the script uses:
+### CSV input (export-csv)
+
+A typical input file has these columns:
+
+- `MetricName` (required)
+- `Month` (required; despite the name it can be any date frequency)
+- `Value` (required)
+- optional extra grouping columns (recommended), e.g. `OrgCode`, `Region`, etc.
+
+Example (long format):
 
 ```text
-working/ae4hr_multi_org_example.csv
+MetricName,OrgCode,Month,Value
+4hr A&E,ABC,2024-01-01,71.2
+4hr A&E,ABC,2024-02-01,69.8
+4hr A&E,XYZ,2024-01-01,75.1
+...

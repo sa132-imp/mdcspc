@@ -400,6 +400,7 @@ def summarise_xmr_by_group(
     lookback_points: int = 12,
     directions_by_group: Optional[Dict[Tuple, str]] = None,
     targets_by_group: Optional[Dict[Tuple, pd.Series]] = None,
+    metric_configs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
     """
     Build a per-series summary table from a MultiXmrResult, with MDC-style
@@ -429,16 +430,17 @@ def summarise_xmr_by_group(
     group_cols = multi.config.group_cols or []
     value_col = multi.config.value_col
 
-    try:
-        metric_configs = load_metric_config()
-        if metric_configs is not None:
-            print(f"[INFO] metric_config: loaded {len(metric_configs)} metric config(s).")
-    except Exception as e:
-        print(
-            "[INFO] metric_config: failed to load central metric config in summary; "
-            f"using defaults only. Error: {e}"
-        )
-        metric_configs = None
+    if metric_configs is None:
+        try:
+            metric_configs = load_metric_config()
+            if metric_configs is not None:
+                print(f"[INFO] metric_config: loaded {len(metric_configs)} metric config(s).")
+        except Exception as e:
+            print(
+                "[INFO] metric_config: failed to load central metric config in summary; "
+                f"using defaults only. Error: {e}"
+            )
+            metric_configs = None
 
     metric_name_idx: Optional[int] = None
     if "MetricName" in group_cols:

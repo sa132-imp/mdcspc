@@ -528,3 +528,9 @@ __all__ = [
     "classify_assurance",
     "classify_assurance_from_key",
 ]
+
+def write_metric_config(df: pd.DataFrame, config_path: Path) -> None:
+    """
+    Writes the DataFrame back to the metric_config.csv.
+    """
+    df.to_csv(config_path, index=False, mode='w', header=True)

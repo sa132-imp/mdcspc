@@ -680,6 +680,9 @@ def plot_xmr(
     title: Optional[str] = None,
     figsize: Tuple[int, int] = (10, 5),
     show: bool = True,
+    x_label_rotate: int = 45,
+    x_label_fontsize: int = 9,
+    x_label_format: Optional[str] = None,
 ):
     """
     Make an XmR chart from an XmrResult.
@@ -701,6 +704,13 @@ def plot_xmr(
     show : bool, optional
         If True (default), calls plt.show() at the end.
         If False, returns (fig, ax) so the caller can manage display.
+    x_label_rotate : int, optional
+        Rotation angle for x-axis tick labels (default: 45).
+    x_label_fontsize : int, optional
+        Font size for x-axis tick labels (default: 9).
+    x_label_format : str, optional
+        Optional strftime format for x-axis labels (e.g. "%d/%m/%y"). If omitted,
+        a sensible default is chosen based on the typical spacing of dates.
     """
     df = result.data.copy()
     cfg = result.config
@@ -788,8 +798,26 @@ def plot_xmr(
         title = "XmR chart"
     ax.set_title(title)
 
-    # Improve x-axis formatting a bit
-    fig.autofmt_xdate(rotation=45)
+    # X-axis labels: show every observation date (no silent downsampling).
+    # If datetime index, format each tick label explicitly.
+    if isinstance(x, pd.DatetimeIndex):
+        fmt = x_label_format
+        if fmt is None:
+            diffs = pd.Series(x).diff().dropna()
+            if not diffs.empty:
+                median_days = diffs.dt.total_seconds().median() / 86400.0
+            else:
+                median_days = 999.0
+            fmt = "%b-%y" if median_days >= 20 else "%d/%m/%y"
+
+        ax.set_xticks(x)
+        ax.set_xticklabels([pd.Timestamp(d).strftime(fmt) for d in x])
+
+    # Apply readability formatting regardless of index type
+    for lbl in ax.get_xticklabels():
+        lbl.set_rotation(int(x_label_rotate))
+        lbl.set_ha("right")
+        lbl.set_fontsize(int(x_label_fontsize))
 
     # Show legend only if there are labelled artists
     handles, labels = ax.get_legend_handles_labels()
