@@ -1404,10 +1404,14 @@ def export_spc_from_csv(
             if phase_cfg_path.exists():
                 df_phase = pd.read_csv(phase_cfg_path)
 
-                # Filter rows for this series
-                df_series_phase = df_phase[
-                    (df_phase["OrgCode"] == key[0]) & (df_phase["MetricName"] == key[1])
-                ].copy()
+                # Filter rows for this series using whichever grouping columns are actually present for this export run
+                df_series_phase = df_phase.copy()
+
+                for idx, col_name in enumerate(multi.config.group_cols):
+                    if col_name in df_series_phase.columns and idx < len(key):
+                        df_series_phase = df_series_phase[
+                            df_series_phase[col_name] == key[idx]
+                        ].copy()
 
                 for _, row in df_series_phase.iterrows():
                     phase_start = pd.to_datetime(row["PhaseStart"]).normalize()
