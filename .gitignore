@@ -29,3 +29,6 @@ Thumbs.db
 # Test build scratch
 tests/data/_build_tmp/
 
+# Root personal helpers
+*.code-workspace
+new_chat_prompt.md
