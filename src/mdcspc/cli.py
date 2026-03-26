@@ -8,7 +8,7 @@ from typing import Optional, Any, Callable, Dict, Tuple
 from importlib import resources
 
 from .wizard import run_wizard
-from mdcspc.wizard import recalc_wizard
+from .wizard import recalc_wizard
 
 
 def _try_import_export_spc_from_csv():
@@ -21,40 +21,13 @@ def _try_import_export_spc_from_csv():
 
 def _try_import_export_spc_from_sqlite():
     """
-    Be flexible about where export_spc_from_sqlite lives.
-
-    We try a couple of plausible module paths so the CLI doesn't break
-    just because we reorganised internals.
+    Import export_spc_from_sqlite from its current implementation module.
     """
-    # 1) Most likely: alongside export_spc_from_csv
-    try:
-        from .exporter import export_spc_from_sqlite  # type: ignore
-        return export_spc_from_sqlite
-    except Exception:
-        pass
-
-    # 2) Current location (dataframe-backed exporters)
     try:
         from .exporter_dataframe import export_spc_from_sqlite  # type: ignore
         return export_spc_from_sqlite
     except Exception:
-        pass
-
-    # 3) Alternate: dedicated module
-    try:
-        from .exporter_sqlite import export_spc_from_sqlite  # type: ignore
-        return export_spc_from_sqlite
-    except Exception:
-        pass
-
-    # 4) Alternate: db/sql helper module
-    try:
-        from .sqlite import export_spc_from_sqlite  # type: ignore
-        return export_spc_from_sqlite
-    except Exception:
-        pass
-
-    return None
+        return None
 
 
 def _call_with_optional_kwargs(func: Callable[..., Any], kwargs: Dict[str, Any]) -> Any:

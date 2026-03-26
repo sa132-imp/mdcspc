@@ -1,3 +1,10 @@
+"""
+mdcspc.exporter
+
+Public, library-level interface for exporting SPC charts and summaries
+from a long-format CSV using the MDC SPC conventions.
+"""
+
 import os
 import re
 from pathlib import Path
@@ -17,13 +24,6 @@ from . import analyse_xmr_by_group, summarise_xmr_by_group
 from .metric_config import load_metric_config, get_metric_config
 
 from .xmr import analyse_xmr
-
-"""
-mdcspc.exporter
-
-Public, library-level interface for exporting SPC charts and summaries
-from a long-format CSV using the MDC SPC conventions.
-"""
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_PROJECT_ROOT = PACKAGE_ROOT.parent
@@ -1243,8 +1243,8 @@ def export_spc_from_csv(
         os.makedirs(working_dir_path, exist_ok=True)
         os.makedirs(charts_dir, exist_ok=True)
 
-        print(f"\n[INFO] Loading input CSV: {input_path}")
-        print(f"[INFO] chart_mode passed to exporter: {chart_mode}")
+        _log(quiet, f"\n[INFO] Loading input CSV: {input_path}")
+        _log(quiet, f"[INFO] chart_mode passed to exporter: {chart_mode}")
 
         # Parse Month/index column in a stable, UK-friendly way:
         # - If values look like ISO (YYYY-MM-DD), parse with explicit format.
@@ -1277,13 +1277,14 @@ def export_spc_from_csv(
         df[index_col] = parsed.dt.normalize()
 
         group_cols = _detect_group_cols(df)
-        print(f"[INFO] Using group columns: {group_cols}")
+        _log(quiet, f"[INFO] Using group columns: {group_cols}")
 
         try:
             metric_configs = load_metric_config(config_dir=config_dir_path)
-            print(f"[INFO] metric_config: loaded {len(metric_configs)} metric config(s).")
+            _log(quiet, f"[INFO] metric_config: loaded {len(metric_configs)} metric config(s).")
         except Exception as e:
-            print(
+            _log(
+                quiet,
                 "[INFO] metric_config: failed to load central metric config; "
                 "directions/units/targets will use defaults only. "
                 f"Error: {e}"
@@ -1338,9 +1339,9 @@ def export_spc_from_csv(
 
         summary_path = working_dir_path / summary_filename
         summary.to_csv(summary_path, index=False)
-        print(f"[INFO] Summary table saved to: {summary_path}")
+        _log(quiet, f"[INFO] Summary table saved to: {summary_path}")
 
-        print("[INFO] Generating MDC-style charts for each series.")
+        _log(quiet, "[INFO] Generating MDC-style charts for each series.")
 
         # Recompute any configured phased series using canonical phase config
         phase_starts_lookup = phase_starts or {}
