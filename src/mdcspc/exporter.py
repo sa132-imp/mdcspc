@@ -3,6 +3,9 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import matplotlib
+matplotlib.use("Agg")
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
