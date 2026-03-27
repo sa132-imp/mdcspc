@@ -26,10 +26,9 @@ from .metric_config import load_metric_config, get_metric_config
 from .xmr import analyse_xmr
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
-DEFAULT_PROJECT_ROOT = PACKAGE_ROOT.parent
-DEFAULT_CONFIG_DIR = DEFAULT_PROJECT_ROOT / "config"
-DEFAULT_WORKING_DIR = DEFAULT_PROJECT_ROOT / "working"
-DEFAULT_ASSETS_DIR = DEFAULT_PROJECT_ROOT / "assets"
+DEFAULT_CONFIG_DIR = PACKAGE_ROOT / "resources" / "config"
+DEFAULT_WORKING_DIR = Path.cwd()
+DEFAULT_ICONS_DIR = PACKAGE_ROOT.parent / "assets" / "icons"
 
 
 def _log(quiet: bool, msg: str) -> None:
@@ -1234,7 +1233,7 @@ def export_spc_from_csv(
             config_dir_path = Path(config_dir)
 
         if icons_dir is None:
-            icons_dir_path = DEFAULT_ASSETS_DIR / "icons"
+            icons_dir_path = DEFAULT_ICONS_DIR
         else:
             icons_dir_path = Path(icons_dir)
 
