@@ -77,13 +77,13 @@ You can either:
 ### 1. Create starter config from CSV
 
 ```powershell
-mdcspc wizard --input tests/data/xmr_golden_input.csv --out-config working/wizard_real_test_2 --defaults
+mdcspc wizard --input tests/data/xmr_golden_input.csv --out-config ./wizard_real_test_2 --defaults
 ```
 
 ### 2. Add a recalculation / phase change
 
 ```powershell
-mdcspc recalc-wizard --config-dir working/wizard_real_test_2 --metric "Decimal+None+CC" --org "ORG_GOLD"
+mdcspc recalc-wizard --config-dir ./wizard_real_test_2 --metric "Decimal+None+CC" --org "ORG_GOLD"
 ```
 
 Example answers at prompt:
@@ -96,12 +96,12 @@ Example answers at prompt:
 ### 3. Rebuild outputs
 
 ```powershell
-mdcspc export-csv --input tests/data/xmr_golden_input.csv --out working/wizard_real_test_2_out --config-dir working/wizard_real_test_2
+mdcspc export-csv --input tests/data/xmr_golden_input.csv --out ./wizard_real_test_2_out --config-dir ./wizard_real_test_2
 ```
 
 ### 4. Review outputs
 
-- Check charts in `working/wizard_real_test_2_out/charts`
+- Check charts in `./wizard_real_test_2_out/charts`
 - Confirm phase annotations appear at the correct position (top / bottom)
 - Check CSV summaries for consistency
 
