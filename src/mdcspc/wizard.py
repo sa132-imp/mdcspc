@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Optional
 import pandas as pd
 from datetime import datetime
+from .errors import blank_metric_name_for_wizard, missing_metric_name_for_wizard
 
 METRIC_CONFIG_COLUMNS: List[str] = [
     "MetricName",
@@ -81,11 +82,11 @@ def run_wizard(input_csv: Path, out_config: Path, defaults: bool = False) -> int
 
     input_df = pd.read_csv(input_csv)
     if "MetricName" not in input_df.columns:
-        raise ValueError("Wizard input CSV must contain a 'MetricName' column.")
+        raise missing_metric_name_for_wizard()
 
     metrics = [str(m).strip() for m in input_df["MetricName"].dropna().unique() if str(m).strip()]
     if not metrics:
-        raise ValueError("Wizard input CSV contains no usable MetricName values.")
+        raise blank_metric_name_for_wizard()
 
     out_config.mkdir(parents=True, exist_ok=True)
 

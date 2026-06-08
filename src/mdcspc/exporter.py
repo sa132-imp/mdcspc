@@ -25,6 +25,8 @@ from .metric_config import load_metric_config, get_metric_config
 
 from .xmr import analyse_xmr
 
+from .errors import no_metric_or_grouping_column_for_export
+
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG_DIR = PACKAGE_ROOT / "resources" / "config"
 DEFAULT_WORKING_DIR = Path.cwd()
@@ -1275,7 +1277,17 @@ def export_spc_from_csv(
 
         df[index_col] = parsed.dt.normalize()
 
-        group_cols = _detect_group_cols(df)
+        group_cols = [
+            col for col in _detect_group_cols(df)
+            if col not in {index_col, value_col}
+        ]
+
+        if not group_cols:
+            raise no_metric_or_grouping_column_for_export(
+                index_col=index_col,
+                value_col=value_col,
+            )
+
         _log(quiet, f"[INFO] Using group columns: {group_cols}")
 
         try:

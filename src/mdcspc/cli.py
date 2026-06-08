@@ -7,6 +7,7 @@ from typing import Optional, Any, Callable, Dict, Tuple
 
 from importlib import resources
 
+from .errors import MdcSpcError
 from .wizard import run_wizard
 from .wizard import recalc_wizard
 
@@ -415,7 +416,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def _main_impl(argv: Optional[list[str]] = None) -> int:
     export_spc_from_csv = _try_import_export_spc_from_csv()
     export_spc_from_sqlite = _try_import_export_spc_from_sqlite()
 
@@ -526,6 +527,17 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     print(f"[ERROR] Unknown command: {args.command}", file=sys.stderr)
     return 1
+
+def main(argv: Optional[list[str]] = None) -> int:
+    try:
+        return _main_impl(argv)
+    except MdcSpcError as exc:
+        print(f"ERROR {exc}", file=sys.stderr)
+        return 1
+    except (FileNotFoundError, ValueError, KeyError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

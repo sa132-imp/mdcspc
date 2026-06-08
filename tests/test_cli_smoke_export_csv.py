@@ -193,6 +193,49 @@ def test_cli_export_csv_quiet_outputs_only_done(tmp_path: Path) -> None:
                 f"LINES FOUND ({len(lines)}). Saved to: {debug_path}\n"
             )
 
+def test_cli_export_csv_without_grouping_column_shows_plain_english_error(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parent.parent
 
+    input_csv = tmp_path / "missing_grouping_column.csv"
+    input_csv.write_text(
+        "date,value\n"
+        "11/01/2026,0.08858\n"
+        "18/01/2026,0.08549\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "export_out"
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "mdcspc.cli",
+        "export-csv",
+        "--input",
+        str(input_csv),
+        "--out",
+        str(out_dir),
+        "--value-col",
+        "value",
+        "--index-col",
+        "date",
+    ]
+
+    completed = subprocess.run(
+        cmd,
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env_with_project_on_path(project_root),
+    )
+
+    combined_output = f"{completed.stdout}\n{completed.stderr}"
+
+    assert completed.returncode == 1
+    assert "ERROR MDCSPC002: No metric or grouping column found" in combined_output
+    assert "MDCSPC could not find a metric or grouping column." in combined_output
+    assert "Phase config is missing required group column" not in combined_output
+    assert "Traceback" not in combined_output
 
 

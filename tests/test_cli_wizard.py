@@ -70,3 +70,44 @@ def test_cli_wizard_writes_starter_configs(tmp_path: Path) -> None:
     assert list(target_df.columns) == ["OrgCode", "MetricName", "EffectiveFrom", "TargetValue"]
 
     assert "Configuration for" in (completed.stdout or "")
+
+def test_cli_wizard_missing_metric_name_shows_plain_english_error(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parent.parent
+
+    input_csv = tmp_path / "missing_metric_name.csv"
+    input_csv.write_text(
+        "date,value\n"
+        "11/01/2026,0.08858\n"
+        "18/01/2026,0.08549\n",
+        encoding="utf-8",
+    )
+
+    out_cfg = tmp_path / "wizard_config"
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "mdcspc.cli",
+        "wizard",
+        "--input",
+        str(input_csv),
+        "--out-config",
+        str(out_cfg),
+        "--defaults",
+    ]
+
+    completed = subprocess.run(
+        cmd,
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env_with_project_on_path(project_root),
+    )
+
+    combined_output = f"{completed.stdout}\n{completed.stderr}"
+
+    assert completed.returncode == 1
+    assert "ERROR MDCSPC001: Missing MetricName column" in combined_output
+    assert "The wizard needs a MetricName column to build the metric configuration." in combined_output
+    assert "Traceback" not in combined_output
