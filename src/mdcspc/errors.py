@@ -88,3 +88,33 @@ def no_metric_or_grouping_column_for_export(
             "If your file contains several metrics, use MetricName to identify each metric."
         ),
     )
+
+def missing_index_column_for_export(index_col: str) -> MdcSpcError:
+    return MdcSpcError(
+        code="MDCSPC003",
+        title="Missing date/index column",
+        detail=(
+            f"Your CSV is missing the date/index column currently set as: {index_col}\n\n"
+            "MDCSPC needs a date or time column so it can put the data points "
+            "in the right order on the chart."
+        ),
+        fix=(
+            "If your date column has a different name, use --index-col.\n"
+            "If your CSV does not have a date or time column yet, add one for each data point."
+        ),
+    )
+
+
+def missing_value_column_for_export(value_col: str) -> MdcSpcError:
+    return MdcSpcError(
+        code="MDCSPC004",
+        title="Missing value column",
+        detail=(
+            f"Your CSV is missing the value column currently set as: {value_col}\n\n"
+            "MDCSPC needs a value column containing the numbers to plot on the chart."
+        ),
+        fix=(
+            "If your value column has a different name, use --value-col.\n"
+            "If your CSV does not have a value column yet, add one containing the metric value for each data point."
+        ),
+    )

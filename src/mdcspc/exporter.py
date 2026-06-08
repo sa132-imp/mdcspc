@@ -25,7 +25,11 @@ from .metric_config import load_metric_config, get_metric_config
 
 from .xmr import analyse_xmr
 
-from .errors import no_metric_or_grouping_column_for_export
+from .errors import (
+    missing_index_column_for_export,
+    missing_value_column_for_export,
+    no_metric_or_grouping_column_for_export,
+)
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG_DIR = PACKAGE_ROOT / "resources" / "config"
@@ -1253,10 +1257,10 @@ def export_spc_from_csv(
         df = pd.read_csv(input_path)
 
         if value_col not in df.columns:
-            raise ValueError(f"Expected a '{value_col}' column in the input CSV.")
+            raise missing_value_column_for_export(value_col=value_col)
 
         if index_col not in df.columns:
-            raise ValueError(f"Expected an '{index_col}' column in the input CSV for the index.")
+            raise missing_index_column_for_export(index_col=index_col)
 
         s = df[index_col].astype(str).str.strip()
         iso_mask = s.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
