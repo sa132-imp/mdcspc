@@ -327,4 +327,50 @@ def test_cli_export_csv_missing_value_column_shows_plain_english_error(tmp_path:
     assert "currently set as: value" in combined_output
     assert "Traceback" not in combined_output
 
+def test_cli_export_csv_bad_index_dates_shows_plain_english_error(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parent.parent
+
+    input_csv = tmp_path / "bad_index_dates.csv"
+    input_csv.write_text(
+        "date,MetricName,value\n"
+        "not-a-date,My_Metric,0.08858\n"
+        "also-bad,My_Metric,0.08549\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "export_out"
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "mdcspc.cli",
+        "export-csv",
+        "--input",
+        str(input_csv),
+        "--out",
+        str(out_dir),
+        "--value-col",
+        "value",
+        "--index-col",
+        "date",
+    ]
+
+    completed = subprocess.run(
+        cmd,
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env_with_project_on_path(project_root),
+    )
+
+    combined_output = f"{completed.stdout}\n{completed.stderr}"
+
+    assert completed.returncode == 1
+    assert "ERROR MDCSPC005: Could not read date/index values" in combined_output
+    assert "not-a-date" in combined_output
+    assert "also-bad" in combined_output
+    assert "UserWarning" not in combined_output
+    assert "Traceback" not in combined_output
+
 

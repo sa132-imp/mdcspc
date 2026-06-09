@@ -25,7 +25,9 @@ from .metric_config import load_metric_config, get_metric_config
 
 from .xmr import analyse_xmr
 
+import warnings
 from .errors import (
+    could_not_parse_index_dates_for_export,
     missing_index_column_for_export,
     missing_value_column_for_export,
     no_metric_or_grouping_column_for_export,
@@ -1266,17 +1268,26 @@ def export_spc_from_csv(
         iso_mask = s.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
 
         parsed = pd.Series([pd.NaT] * len(df), index=df.index, dtype="datetime64[ns]")
-        if iso_mask.any():
-            parsed.loc[iso_mask] = pd.to_datetime(
-                s.loc[iso_mask],
-                format="%Y-%m-%d",
-                errors="raise",
-            )
-        if (~iso_mask).any():
-            parsed.loc[~iso_mask] = pd.to_datetime(
-                s.loc[~iso_mask],
-                dayfirst=True,
-                errors="raise",
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+
+                if iso_mask.any():
+                    parsed.loc[iso_mask] = pd.to_datetime(
+                        s.loc[iso_mask],
+                        format="%Y-%m-%d",
+                        errors="raise",
+                    )
+                if (~iso_mask).any():
+                    parsed.loc[~iso_mask] = pd.to_datetime(
+                        s.loc[~iso_mask],
+                        dayfirst=True,
+                        errors="raise",
+                    )
+        except (TypeError, ValueError):
+            raise could_not_parse_index_dates_for_export(
+                index_col=index_col,
+                bad_values=s.head(10).tolist(),
             )
 
         df[index_col] = parsed.dt.normalize()

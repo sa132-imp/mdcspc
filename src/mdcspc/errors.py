@@ -118,3 +118,28 @@ def missing_value_column_for_export(value_col: str) -> MdcSpcError:
             "If your CSV does not have a value column yet, add one containing the metric value for each data point."
         ),
     )
+
+def could_not_parse_index_dates_for_export(
+    index_col: str,
+    bad_values: list[str],
+) -> MdcSpcError:
+    shown_values = bad_values[:5]
+    values_text = "\n".join(f"- {value}" for value in shown_values)
+
+    return MdcSpcError(
+        code="MDCSPC005",
+        title="Could not read date/index values",
+        detail=(
+            f"MDCSPC could not read some values in the date/index column currently set as: {index_col}\n\n"
+            "Example problem values:\n"
+            f"{values_text}"
+        ),
+        fix=(
+            "Check that the date/index column contains real dates.\n"
+            "Common formats include:\n"
+            "- 11/01/2026\n"
+            "- 2026-01-11\n"
+            "- Jan 2026"
+        ),
+    )
+
