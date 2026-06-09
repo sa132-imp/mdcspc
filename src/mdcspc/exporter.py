@@ -28,6 +28,7 @@ from .xmr import analyse_xmr
 import warnings
 from .errors import (
     could_not_parse_index_dates_for_export,
+    could_not_parse_numeric_values_for_export,
     missing_index_column_for_export,
     missing_value_column_for_export,
     no_metric_or_grouping_column_for_export,
@@ -1263,6 +1264,17 @@ def export_spc_from_csv(
 
         if index_col not in df.columns:
             raise missing_index_column_for_export(index_col=index_col)
+
+        numeric_values = pd.to_numeric(df[value_col], errors="coerce")
+        bad_value_mask = df[value_col].notna() & numeric_values.isna()
+
+        if bad_value_mask.any():
+            raise could_not_parse_numeric_values_for_export(
+                value_col=value_col,
+                bad_values=df.loc[bad_value_mask, value_col].astype(str).head(10).tolist(),
+            )
+
+        df[value_col] = numeric_values
 
         s = df[index_col].astype(str).str.strip()
         iso_mask = s.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)

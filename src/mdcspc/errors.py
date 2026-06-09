@@ -143,3 +143,29 @@ def could_not_parse_index_dates_for_export(
         ),
     )
 
+def could_not_parse_numeric_values_for_export(
+    value_col: str,
+    bad_values: list[str],
+) -> MdcSpcError:
+    shown_values = bad_values[:5]
+    values_text = "\n".join(f"- {value}" for value in shown_values)
+
+    return MdcSpcError(
+        code="MDCSPC006",
+        title="Could not read numeric values",
+        detail=(
+            "MDCSPC could not convert some values in the value column to numbers.\n\n"
+            f"Value column currently set as: {value_col}\n\n"
+            "Example problem values:\n"
+            f"{values_text}"
+        ),
+        fix=(
+            "Check that the value column contains numbers only.\n"
+            "Remove text, symbols or notes from the value column before running the export.\n\n"
+            "Examples of valid values:\n"
+            "- 12\n"
+            "- 12.5\n"
+            "- 0.08858"
+        ),
+    )
+
