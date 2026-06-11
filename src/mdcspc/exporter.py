@@ -638,10 +638,27 @@ def _plot_mdc_chart_for_series(
 
     # Build title from a user-friendly template.
     # Template can reference group column names, e.g. "{OrgCode} – {MetricName}".
+    # It can also reference metric-config fields such as "{DisplayName}".
     context = {str(col): str(val) for col, val in zip(group_cols, group_values)}
+
+    metric_cfg = None
+    metric_name_for_title = context.get("MetricName")
+    if metric_configs and metric_name_for_title:
+        metric_cfg = metric_configs.get(str(metric_name_for_title))
+
+    if metric_cfg is not None:
+        display_name = getattr(metric_cfg, "display_name", None)
+        if display_name is None:
+            display_name = getattr(metric_cfg, "DisplayName", None)
+        if display_name is not None and str(display_name).strip():
+            context.setdefault("DisplayName", str(display_name).strip())
+            context.setdefault("display_name", str(display_name).strip())
+
     # Common convenience aliases
     if "MetricName" in context:
         context.setdefault("metric", context["MetricName"])
+    if "DisplayName" in context:
+        context.setdefault("display", context["DisplayName"])
     if "OrgCode" in context:
         context.setdefault("org", context["OrgCode"])
 

@@ -120,6 +120,27 @@ def _get_default_target_from_metric(metric_cfg: Any) -> Optional[float]:
         return None
 
 
+def _get_unit(metric_cfg: Any) -> Optional[str]:
+    """
+    Extract Unit from a MetricConfig row, if present.
+    """
+    if metric_cfg is None:
+        return None
+
+    unit = getattr(metric_cfg, "unit", None)
+    if unit is None:
+        unit = getattr(metric_cfg, "Unit", None)
+
+    if unit is None:
+        return None
+
+    unit = str(unit).strip()
+    if not unit:
+        return None
+
+    return unit
+
+
 def _apply_decimal_places(value: Any, decimal_places: Optional[int]) -> Any:
     """
     Apply a DecimalPlaces rule to a numeric value.
@@ -137,6 +158,33 @@ def _apply_decimal_places(value: Any, decimal_places: Optional[int]) -> Any:
         return round(float(value), decimal_places)
     except Exception:
         return value
+
+
+def _apply_summary_display_format(
+    value: Any,
+    decimal_places: Optional[int],
+    unit: Optional[str],
+) -> Any:
+    """
+    Format numeric values for summary output.
+
+    SPC calculations use the raw input values. For percent metrics where the
+    input is stored as a proportion, display the summary value as a percentage
+    before applying DecimalPlaces.
+    """
+    if value is None or pd.isna(value):
+        return value
+
+    try:
+        numeric_value = float(value)
+    except Exception:
+        return value
+
+    unit_normalised = str(unit or "").strip().lower()
+    if unit_normalised in {"percent", "percentage", "%"}:
+        numeric_value = numeric_value * 100
+
+    return _apply_decimal_places(numeric_value, decimal_places)
 
 
 def _classify_variation_for_last_point(
@@ -476,6 +524,7 @@ def summarise_xmr_by_group(
                     metric_cfg = None
 
         decimal_places = _get_decimal_places(metric_cfg)
+        unit = _get_unit(metric_cfg)
         default_target_from_metric = _get_default_target_from_metric(metric_cfg)
 
         dir_for_group = direction
@@ -574,10 +623,10 @@ def summarise_xmr_by_group(
         if (pd.isna(target_value) or target_value is None) and default_target_from_metric is not None:
             target_value = default_target_from_metric
 
-        last_value_fmt = _apply_decimal_places(var_info["last_value"], decimal_places)
-        mean_latest_fmt = _apply_decimal_places(mean_latest, decimal_places)
-        lcl_latest_fmt = _apply_decimal_places(lcl_latest, decimal_places)
-        ucl_latest_fmt = _apply_decimal_places(ucl_latest, decimal_places)
+        last_value_fmt = _apply_summary_display_format(var_info["last_value"], decimal_places, unit)
+        mean_latest_fmt = _apply_summary_display_format(mean_latest, decimal_places, unit)
+        lcl_latest_fmt = _apply_summary_display_format(lcl_latest, decimal_places, unit)
+        ucl_latest_fmt = _apply_summary_display_format(ucl_latest, decimal_places, unit)
         target_value_fmt = _apply_decimal_places(target_value, decimal_places)
 
         # Track centralised variation/assurance statuses for the summary output.
