@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.dates as mdates
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-from matplotlib.ticker import FormatStrFormatter, FixedLocator
+from matplotlib.ticker import FormatStrFormatter, FixedLocator, MultipleLocator
 
 from . import analyse_xmr_by_group, summarise_xmr_by_group
 from .metric_config import load_metric_config, get_metric_config
@@ -1069,6 +1069,17 @@ def _plot_mdc_chart_for_series(
         ymax_new = ymax_auto + 0.20 * span
 
     ax_x.set_ylim(ymin_new, ymax_new)
+    # Ensure sensible tick spacing so max value is always visible
+    if y_max is not None and y_min is not None:
+        step = 1
+    elif span <= 20:
+        step = 1
+    elif span <= 50:
+        step = 2
+    else:
+        step = 5
+
+    ax_x.yaxis.set_major_locator(MultipleLocator(step))
 
     # -----------------------
     # mR chart
@@ -1192,6 +1203,7 @@ def _plot_mdc_chart_for_series(
         else:
             fmt_str = f"%.{dp_int}f"
         ax_x.yaxis.set_major_formatter(FormatStrFormatter(fmt_str))
+        ax_x.set_yticks(list(range(int(ymin_new), int(ymax_new) + 1, step)))
         if chart_mode == "xmr" and ax_mr is not None:
             ax_mr.yaxis.set_major_formatter(FormatStrFormatter(fmt_str))
     except Exception:
