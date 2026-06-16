@@ -193,10 +193,10 @@ def test_cli_export_csv_quiet_outputs_only_done(tmp_path: Path) -> None:
                 f"LINES FOUND ({len(lines)}). Saved to: {debug_path}\n"
             )
 
-def test_cli_export_csv_without_grouping_column_shows_plain_english_error(tmp_path: Path) -> None:
+def test_cli_export_csv_without_grouping_column_uses_single_series_fallback(tmp_path: Path) -> None:
     project_root = Path(__file__).resolve().parent.parent
 
-    input_csv = tmp_path / "missing_grouping_column.csv"
+    input_csv = tmp_path / "single_series_no_grouping_column.csv"
     input_csv.write_text(
         "date,value\n"
         "11/01/2026,0.08858\n"
@@ -232,11 +232,20 @@ def test_cli_export_csv_without_grouping_column_shows_plain_english_error(tmp_pa
 
     combined_output = f"{completed.stdout}\n{completed.stderr}"
 
-    assert completed.returncode == 1
-    assert "ERROR MDCSPC002: No metric or grouping column found" in combined_output
-    assert "MDCSPC could not find a metric or grouping column." in combined_output
+    assert completed.returncode == 0
+    assert "Using group columns: ['MetricName']" in combined_output
+    assert "Series1" in combined_output
+    assert "ERROR MDCSPC002" not in combined_output
     assert "Phase config is missing required group column" not in combined_output
     assert "Traceback" not in combined_output
+
+    summary_path = out_dir / "spc_summary_from_input.csv"
+    charts_dir = out_dir / "charts"
+    chart_path = charts_dir / "Series1.png"
+
+    assert summary_path.exists(), f"Expected summary file not found: {summary_path}"
+    assert charts_dir.exists(), f"Expected charts dir not found: {charts_dir}"
+    assert chart_path.exists(), f"Expected fallback single-series chart not found: {chart_path}"
 
 def test_cli_export_csv_missing_index_column_shows_plain_english_error(tmp_path: Path) -> None:
     project_root = Path(__file__).resolve().parent.parent

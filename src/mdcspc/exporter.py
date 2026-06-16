@@ -23,6 +23,8 @@ from matplotlib.ticker import FormatStrFormatter, FixedLocator, MultipleLocator
 from . import analyse_xmr_by_group, summarise_xmr_by_group
 from .metric_config import load_metric_config, get_metric_config
 
+from .auto_detect import detect_columns
+
 from .xmr import analyse_xmr
 
 import warnings
@@ -37,8 +39,7 @@ from .errors import (
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG_DIR = PACKAGE_ROOT / "resources" / "config"
 DEFAULT_WORKING_DIR = Path.cwd()
-DEFAULT_ICONS_DIR = PACKAGE_ROOT.parent / "assets" / "icons"
-
+DEFAULT_ICONS_DIR = PACKAGE_ROOT / "resources" / "icons"
 
 def _log(quiet: bool, msg: str) -> None:
     """Internal print helper that respects quiet mode."""
@@ -629,6 +630,14 @@ def _plot_mdc_chart_for_series(
         - "xmr"    : Combined X (top) + mR (bottom) chart.
     """
     df = group_result.data.copy()
+
+    # Normalise the plotting index.
+    # The plotting code below uses df.index for the x-axis.
+    if index_label in df.columns:
+        df = df.set_index(index_label)
+    elif not isinstance(df.index, pd.DatetimeIndex):
+        df = df.reset_index(drop=True)
+
     if df.empty:
         return
 
@@ -1223,6 +1232,22 @@ def _plot_mdc_chart_for_series(
 # Public API
 # -------------------------------------------------------------------
 
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class SpcPlotOptions:
+    title_template: str = "{MetricName}"
+    y_label: Optional[str] = None
+    y_min: Optional[float] = None
+    y_max: Optional[float] = None
+    x_label_rotate: int = 90
+    x_label_fontsize: int = 8
+    x_label_format: Optional[str] = None
+    annotate_last_point: bool = False
+    annotate_special_cause: bool = False
+
 
 def export_spc_from_csv(
     input_csv: Union[str, Path],
@@ -1234,46 +1259,24 @@ def export_spc_from_csv(
     summary_filename: str = "spc_summary_from_input.csv",
     charts_subdir: str = "charts",
     chart_mode: str = "x_only",
-    title_template: str = "{MetricName}",
-    y_label: Optional[str] = None,
-    y_min: Optional[float] = None,
-    y_max: Optional[float] = None,
-    x_label_rotate: int = 90,
-    x_label_fontsize: int = 8,
-    x_label_format: Optional[str] = None,
-    annotate_last_point: bool = False,
-    annotate_special_cause: bool = False,
+    plot_options: Optional[SpcPlotOptions] = None,
     quiet: bool = False,
 ) -> Tuple[pd.DataFrame, Any]:
-    """
-    Run XmR analysis and export SPC outputs from a long-format CSV.
-    """
+
     import builtins
 
     input_path = Path(input_csv)
     if not input_path.exists():
         raise FileNotFoundError(f"Input CSV not found: {input_path}")
 
-    # Quiet mode: suppress ALL print() chatter from exporter + helpers.
     _orig_print = builtins.print
     if quiet:
         builtins.print = lambda *args, **kwargs: None  # type: ignore
 
     try:
-        if working_dir is None:
-            working_dir_path = DEFAULT_WORKING_DIR
-        else:
-            working_dir_path = Path(working_dir)
-
-        if config_dir is None:
-            config_dir_path = DEFAULT_CONFIG_DIR
-        else:
-            config_dir_path = Path(config_dir)
-
-        if icons_dir is None:
-            icons_dir_path = DEFAULT_ICONS_DIR
-        else:
-            icons_dir_path = Path(icons_dir)
+        working_dir_path = Path(working_dir) if working_dir else DEFAULT_WORKING_DIR
+        config_dir_path = Path(config_dir) if config_dir else DEFAULT_CONFIG_DIR
+        icons_dir_path = Path(icons_dir) if icons_dir else DEFAULT_ICONS_DIR
 
         charts_dir = working_dir_path / charts_subdir
 
@@ -1283,32 +1286,97 @@ def export_spc_from_csv(
         _log(quiet, f"\n[INFO] Loading input CSV: {input_path}")
         _log(quiet, f"[INFO] chart_mode passed to exporter: {chart_mode}")
 
-        # Parse Month/index column in a stable, UK-friendly way:
-        # - If values look like ISO (YYYY-MM-DD), parse with explicit format.
-        # - Otherwise parse with dayfirst=True.
         df = pd.read_csv(input_path)
 
-        if value_col not in df.columns:
-            raise missing_value_column_for_export(value_col=value_col)
+        # ------------------------------------------------------------
+        # AUTO-DETECTION + COLUMN OVERRIDE RESOLUTION
+        # ------------------------------------------------------------
 
-        if index_col not in df.columns:
+        detection = detect_columns(df)
+        warnings_list = []
+
+        default_index_col = "Month"
+        default_value_col = "Value"
+
+        index_col_was_default = index_col == default_index_col
+        value_col_was_default = value_col == default_value_col
+
+        resolved_index_col = detection.index_col
+        resolved_value_col = detection.value_col
+
+        if index_col:
+            if index_col in df.columns:
+                resolved_index_col = index_col
+            elif index_col_was_default:
+                warnings_list.append(
+                    f"[WARN] Ignoring index_col '{index_col}' (not found, using {resolved_index_col})"
+                )
+            else:
+                raise missing_index_column_for_export(index_col=index_col)
+
+        if value_col:
+            if value_col in df.columns:
+                resolved_value_col = value_col
+            elif value_col_was_default:
+                warnings_list.append(
+                    f"[WARN] Ignoring value_col '{value_col}' (not found, using {resolved_value_col})"
+                )
+            else:
+                raise ValueError(
+                    f"ERROR MDCSPC004: Missing value column\n\n"
+                    f"MDCSPC could not find the value column currently set as: {value_col}\n\n"
+                    f"Available columns: {list(df.columns)}\n\n"
+                    f"Fix:\n"
+                    f"- Use --value-col with one of the available columns\n"
+                    f"- Or rename your dataset column to '{value_col}'\n"
+                )
+
+        if resolved_index_col is None or resolved_index_col not in df.columns:
             raise missing_index_column_for_export(index_col=index_col)
 
-        numeric_values = pd.to_numeric(df[value_col], errors="coerce")
-        bad_value_mask = df[value_col].notna() & numeric_values.isna()
+        if resolved_value_col is None or resolved_value_col not in df.columns:
+            raise ValueError(
+                f"ERROR MDCSPC004: Missing value column '{value_col}'\n\n"
+                f"MDCSPC could not find a usable value column.\n\n"
+                f"Available columns: {list(df.columns)}\n\n"
+                f"Fix:\n"
+                f"- Use --value-col with one of the available columns\n"
+                f"- Or rename your dataset value column\n"
+            )
+
+        if not quiet:
+            print(f"[INFO] Auto-detection confidence: {detection.confidence}")
+
+            for w in detection.warnings:
+                print(f"[WARN] {w}")
+
+            for w in warnings_list:
+                print(f"[WARN] {w}")
+
+        # ------------------------------------------------------------
+        # VALUE CLEANING
+        # ------------------------------------------------------------
+
+        numeric_values = pd.to_numeric(df[resolved_value_col], errors="coerce")
+        bad_value_mask = df[resolved_value_col].notna() & numeric_values.isna()
 
         if bad_value_mask.any():
             raise could_not_parse_numeric_values_for_export(
-                value_col=value_col,
-                bad_values=df.loc[bad_value_mask, value_col].astype(str).head(10).tolist(),
+                value_col=resolved_value_col,
+                bad_values=df.loc[bad_value_mask, resolved_value_col].astype(str).head(10).tolist(),
             )
 
-        df[value_col] = numeric_values
+        df[resolved_value_col] = numeric_values
 
-        s = df[index_col].astype(str).str.strip()
+        # ------------------------------------------------------------
+        # INDEX PARSING
+        # ------------------------------------------------------------
+
+        s = df[resolved_index_col].astype(str).str.strip()
         iso_mask = s.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
 
         parsed = pd.Series([pd.NaT] * len(df), index=df.index, dtype="datetime64[ns]")
+
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
@@ -1319,56 +1387,62 @@ def export_spc_from_csv(
                         format="%Y-%m-%d",
                         errors="raise",
                     )
+
                 if (~iso_mask).any():
                     parsed.loc[~iso_mask] = pd.to_datetime(
                         s.loc[~iso_mask],
                         dayfirst=True,
                         errors="raise",
                     )
+
         except (TypeError, ValueError):
             raise could_not_parse_index_dates_for_export(
-                index_col=index_col,
+                index_col=resolved_index_col,
                 bad_values=s.head(10).tolist(),
             )
 
-        df[index_col] = parsed.dt.normalize()
+        df[resolved_index_col] = parsed.dt.normalize()
 
-        group_cols = [
+        # ------------------------------------------------------------
+        # GROUP DETECTION
+        # ------------------------------------------------------------
+
+        resolved_group_cols = [
             col for col in _detect_group_cols(df)
-            if col not in {index_col, value_col}
+            if col not in {resolved_index_col, resolved_value_col}
         ]
 
-        if not group_cols:
-            raise no_metric_or_grouping_column_for_export(
-                index_col=index_col,
-                value_col=value_col,
-            )
+        if not resolved_group_cols:
+            df["MetricName"] = "Series1"
+            resolved_group_cols = ["MetricName"]
 
-        _log(quiet, f"[INFO] Using group columns: {group_cols}")
+        _log(quiet, f"[INFO] Using group columns: {resolved_group_cols}")
+
+        # ------------------------------------------------------------
+        # CONFIG LOAD
+        # ------------------------------------------------------------
 
         try:
             metric_configs = load_metric_config(config_dir=config_dir_path)
-            _log(quiet, f"[INFO] metric_config: loaded {len(metric_configs)} metric config(s).")
         except Exception as e:
-            _log(
-                quiet,
-                "[INFO] metric_config: failed to load central metric config; "
-                "directions/units/targets will use defaults only. "
-                f"Error: {e}"
-            )
+            _log(quiet, f"[INFO] metric_config: failed to load; using defaults. Error: {e}")
             metric_configs = None
 
         phase_starts = _load_phase_config(
             config_dir=config_dir_path,
             working_dir=working_dir_path,
-            group_cols=group_cols,
+            group_cols=resolved_group_cols,
         )
+
+        # ------------------------------------------------------------
+        # ANALYSIS
+        # ------------------------------------------------------------
 
         multi = analyse_xmr_by_group(
             data=df,
-            value_col=value_col,
-            index_col=index_col,
-            group_cols=group_cols,
+            value_col=resolved_value_col,
+            index_col=resolved_index_col,
+            group_cols=resolved_group_cols,
             phase_starts=phase_starts,
             baseline_mode="all",
             baseline_points=None,
@@ -1380,18 +1454,19 @@ def export_spc_from_csv(
 
         directions_by_group = _build_directions_by_group_from_metric_config(
             multi=multi,
-            group_cols=group_cols,
+            group_cols=resolved_group_cols,
             metric_configs=metric_configs,
         )
 
         target_cfg = _load_target_config(
             config_dir=config_dir_path,
             working_dir=working_dir_path,
-            group_cols=group_cols,
+            group_cols=resolved_group_cols,
         )
+
         targets_by_group = _build_targets_by_group(
             multi=multi,
-            group_cols=group_cols,
+            group_cols=resolved_group_cols,
             target_cfg=target_cfg,
         )
 
@@ -1406,34 +1481,33 @@ def export_spc_from_csv(
 
         summary_path = working_dir_path / summary_filename
         summary.to_csv(summary_path, index=False)
+
         _log(quiet, f"[INFO] Summary table saved to: {summary_path}")
+
+        # ------------------------------------------------------------
+        # CHART GENERATION
+        # ------------------------------------------------------------
 
         _log(quiet, "[INFO] Generating MDC-style charts for each series.")
 
-        # Recompute any configured phased series using canonical phase config
         phase_starts_lookup = phase_starts or {}
 
         for key, group_result in multi.by_group.items():
             df_metric = group_result.data.copy()
             metric_phase_dates = phase_starts_lookup.get(key, [])
 
-            # Ensure index column exists for analyse_xmr (avoid duplicate Month)
-            if index_col is not None:
-                if index_col in df_metric.columns:
-                    pass
-                else:
-                    if df_metric.index.name == index_col or df_metric.index.name is None:
-                        df_metric = df_metric.reset_index()
-                        if df_metric.columns[0] != index_col:
-                            df_metric.rename(columns={df_metric.columns[0]: index_col}, inplace=True)
-                    else:
-                        df_metric[index_col] = df_metric.index
+            # analyse_xmr needs resolved_index_col to be a real column.
+            # group_result.data may have the date stored as the DataFrame index.
+            if resolved_index_col not in df_metric.columns:
+                df_metric = df_metric.reset_index()
 
-            # Recompute XmR for this series using configured phase starts
+                if resolved_index_col not in df_metric.columns:
+                    df_metric = df_metric.rename(columns={df_metric.columns[0]: resolved_index_col})
+
             recomputed_result = analyse_xmr(
                 data=df_metric,
-                value_col=value_col,
-                index_col=index_col,
+                value_col=resolved_value_col,
+                index_col=resolved_index_col,
                 phase_starts=metric_phase_dates,
                 baseline_mode=group_result.config.baseline_mode,
                 baseline_points=group_result.config.baseline_points,
@@ -1442,11 +1516,15 @@ def export_spc_from_csv(
                 rules=group_result.config.rules,
             )
 
-            # Reattach group columns
             for gc, val in zip(multi.config.group_cols, key):
                 recomputed_result.data[gc] = val
 
-            # Replace group_result data with recomputed stats
+            if resolved_index_col not in recomputed_result.data.columns:
+                recomputed_result.data = recomputed_result.data.copy()
+
+                if resolved_index_col in df_metric.columns:
+                    recomputed_result.data[resolved_index_col] = df_metric[resolved_index_col].values
+
             group_result.data = recomputed_result.data
 
         summary = summarise_xmr_by_group(
@@ -1460,22 +1538,22 @@ def export_spc_from_csv(
 
         summary.to_csv(working_dir_path / summary_filename, index=False)
 
-        # End phased recomputation pass
+        value_col_final = resolved_value_col
+        index_col_final = resolved_index_col
+        group_cols_final = resolved_group_cols
 
-        value_col_final = multi.config.value_col
         n_series = 0
 
         for key, group_result in multi.by_group.items():
             n_series += 1
             group_values = list(key)
 
-            # Build phase annotations for this series
             phase_annotations = []
+
             phase_cfg_path = config_dir_path / "spc_phase_config.csv"
             if phase_cfg_path.exists():
                 df_phase = pd.read_csv(phase_cfg_path)
 
-                # Filter rows for this series using whichever grouping columns are actually present for this export run
                 df_series_phase = df_phase.copy()
 
                 for idx, col_name in enumerate(multi.config.group_cols):
@@ -1491,9 +1569,7 @@ def export_spc_from_csv(
                     raw_show = str(row.get("ShowOnChart", "")).strip().lower()
                     show_on_chart = raw_show in {"true", "1", "yes", "y"}
 
-                    annotation_position = str(
-                        row.get("AnnotationPosition", "L")
-                    ).strip().upper() or "L"
+                    annotation_position = str(row.get("AnnotationPosition", "L")).strip().upper() or "L"
 
                     phase_annotations.append({
                         "phase_start": phase_start,
@@ -1502,12 +1578,14 @@ def export_spc_from_csv(
                         "AnnotationPosition": annotation_position,
                     })
 
-            # Call plotting function with phase annotations
+            if plot_options is None:
+                plot_options = SpcPlotOptions()
+
             _plot_mdc_chart_for_series(
                 key_tuple=key,
                 group_result=group_result,
                 group_values=group_values,
-                group_cols=group_cols,
+                group_cols=group_cols_final,
                 value_col=value_col_final,
                 charts_dir=charts_dir,
                 summary=summary,
@@ -1515,17 +1593,17 @@ def export_spc_from_csv(
                 targets_by_group=targets_by_group,
                 metric_configs=metric_configs,
                 chart_mode=chart_mode,
-                index_label=index_col,
-                title_template=title_template,
-                y_label=y_label,
-                y_min=y_min,
-                y_max=y_max,
-                x_label_rotate=x_label_rotate,
-                x_label_fontsize=x_label_fontsize,
-                x_label_format=x_label_format,
-                annotate_last_point=annotate_last_point,
-                annotate_special_cause=annotate_special_cause,
-                phase_annotations=phase_annotations,  # NEW ARG
+                index_label=index_col_final,
+                title_template=plot_options.title_template,
+                y_label=plot_options.y_label,
+                y_min=plot_options.y_min,
+                y_max=plot_options.y_max,
+                x_label_rotate=plot_options.x_label_rotate,
+                x_label_fontsize=plot_options.x_label_fontsize,
+                x_label_format=plot_options.x_label_format,
+                annotate_last_point=plot_options.annotate_last_point,
+                annotate_special_cause=plot_options.annotate_special_cause,
+                phase_annotations=phase_annotations,
             )
 
         print(f"[INFO] Generated {n_series} chart file(s) in: {charts_dir}\n")
@@ -1533,5 +1611,5 @@ def export_spc_from_csv(
         return summary, multi
 
     finally:
-        # Always restore print()
         builtins.print = _orig_print
+

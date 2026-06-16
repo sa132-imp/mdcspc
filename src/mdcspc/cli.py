@@ -33,38 +33,50 @@ def _try_import_export_spc_from_sqlite():
 
 def _call_with_optional_kwargs(func: Callable[..., Any], kwargs: Dict[str, Any]) -> Any:
     """
-    Call func(**kwargs), but if it errors due to an unexpected keyword argument
-    (e.g. older exporter doesn't accept quiet/config_dir), retry without it.
+    Call func(**kwargs), but safely strip unsupported CLI args.
 
-    This keeps the CLI robust while internals move around.
+    This avoids recursive retry loops and ensures stable CLI behaviour
+    while exporter signatures evolve.
     """
+
+    import inspect
+
+    # Copy once (no mutation of input)
+    filtered_kwargs = dict(kwargs)
+
+    # Known CLI-only args that may not exist on every function
+    optional_args = {
+        "quiet",
+        "config_dir",
+        "icons_dir",
+        "title_template",
+        "y_label",
+        "y_min",
+        "y_max",
+        "x_label_rotate",
+        "x_label_fontsize",
+        "x_label_format",
+        "annotate_last_point",
+        "annotate_special_cause",
+        "plot_options",
+    }
+
     try:
-        return func(**kwargs)
-    except TypeError as e:
-        msg = str(e)
+        sig = inspect.signature(func)
+        valid_params = set(sig.parameters.keys())
 
-        # Retry stripping known optional kwargs one-by-one if they are rejected
-        for opt in [
-            "quiet",
-            "config_dir",
-            "icons_dir",
-            "title_template",
-            "y_label",
-            "y_min",
-            "y_max",
-            "x_label_rotate",
-            "x_label_fontsize",
-            "x_label_format",
-            "annotate_last_point",
-            "annotate_special_cause",
-        ]:
-            if opt in kwargs and ("unexpected keyword argument" in msg) and (f"'{opt}'" in msg):
-                new_kwargs = dict(kwargs)
-                new_kwargs.pop(opt, None)
-                return _call_with_optional_kwargs(func, new_kwargs)
+        # Keep only args that are actually supported OR not CLI-only noise
+        filtered_kwargs = {
+            k: v for k, v in filtered_kwargs.items()
+            if k in valid_params
+        }
 
-        raise
+    except Exception:
+        # If introspection fails, aggressively strip known optional args
+        for opt in optional_args:
+            filtered_kwargs.pop(opt, None)
 
+    return func(**filtered_kwargs)
 
 # -------------------------
 # Config helpers (init/explain)

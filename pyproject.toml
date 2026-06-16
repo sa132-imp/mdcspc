@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mdcspc"
-version = "0.1.0"
+version = "0.2.0"
 description = "NHS-friendly SPC toolkit (Making Data Count style) with XmR charts, special-cause rules, and icon summaries."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,6 +36,7 @@ include = ["mdcspc*"]
 [tool.setuptools.package-data]
 mdcspc = [
   "resources/config/*.csv",
+  "resources/icons/*.png",
 ]
 
 [tool.pytest.ini_options]

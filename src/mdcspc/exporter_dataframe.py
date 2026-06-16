@@ -24,6 +24,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 import pandas as pd
 
 from .exporter import export_spc_from_csv
+from .exporter import SpcPlotOptions
 
 
 def _ensure_datetime_column(df: pd.DataFrame, col: str) -> pd.DataFrame:
@@ -66,6 +67,7 @@ def export_spc_from_dataframe(
     charts_subdir: str = "charts",
     chart_mode: str = "x_only",
     quiet: bool = False,
+    plot_options: Optional[SpcPlotOptions] = None,
 ) -> Tuple[pd.DataFrame, Any]:
     """
     Run XmR analysis and export SPC outputs from an in-memory DataFrame.
@@ -110,6 +112,7 @@ def export_spc_from_dataframe(
             charts_subdir=charts_subdir,
             chart_mode=chart_mode,
             quiet=quiet,
+            plot_options=plot_options,
         )
 
     finally:
@@ -133,6 +136,7 @@ def export_spc_from_sqlite(
     charts_subdir: str = "charts",
     chart_mode: str = "x_only",
     quiet: bool = False,
+    plot_options: Optional[SpcPlotOptions] = None,
 ) -> Tuple[pd.DataFrame, Any]:
     """
     Query a SQLite database into a DataFrame, then run the standard export pipeline.

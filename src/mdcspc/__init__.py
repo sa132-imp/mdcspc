@@ -33,7 +33,7 @@ from .exporter import export_spc_from_csv
 from .exporter_dataframe import export_spc_from_dataframe, export_spc_from_sqlite
 
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "__version__",
