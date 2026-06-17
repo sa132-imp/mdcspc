@@ -404,6 +404,8 @@ def analyse_xmr(
 
     # Minimal structure when not enough points overall
     if n_points < min_points_for_spc:
+        print(f"[WARN] Only {n_points} points (< {min_points_for_spc}) so SPC limits not calculated")
+
         work = work.copy()
         # Even if phase_starts provided, for very short series we keep it simple
         work["phase"] = 1

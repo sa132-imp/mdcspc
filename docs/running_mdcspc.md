@@ -16,7 +16,7 @@ Config-driven workflow with optional helper wizards for setup and recalcs.
 Open the VS Code terminal in the project root folder:
 
 ```powershell
-cd "C:\Users\adam.smith9\OneDrive - NHS\Projects\MDCpip"
+cd "C:\path\to\your\project"
 ```
 
 All commands use the installed `mdcspc` command:
