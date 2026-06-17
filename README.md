@@ -118,13 +118,13 @@ mdcspc export-csv --input path/to/input.csv --out path/to/output
 ### Export from SQLite
 
 ```powershell
-mdcspc export-sqlite --db path/to/data.db --sql path/to/query.sql --out path/to/output
+mdcspc export-sqlite --db path/to/data.db --query "SELECT Month, Value, MetricName FROM your_table" --out path/to/output
 ```
 
 ### Write starter config templates
 
 ```powershell
-mdcspc init-config --out-config path/to/config
+mdcspc init-config --out path/to/config
 ```
 
 ### Explain config resolution
