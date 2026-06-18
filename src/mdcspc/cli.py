@@ -304,7 +304,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_csv.add_argument(
         "--quiet",
         action="store_true",
-        help="Suppress chatter; still prints final '[INFO] Done.' only.",
+        help="Suppress non-essential output; only prints final '[INFO] Done.' message.",
     )
     p_csv.add_argument("--chart-mode", default="x_only", choices=["xmr", "x_only"], help="Chart mode")
     p_csv.add_argument("--value-col", default="Value", help="Value column name in the input")
@@ -323,7 +323,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_csv.add_argument(
         "--y-label",
         default=None,
-        help="Y-axis label override (defaults to value column name, with units where known).",
+        help="Y-axis label override (defaults to value column name; units applied where configured).",
     )
     p_csv.add_argument("--y-min", type=float, default=None, help="Y-axis minimum (optional)")
     p_csv.add_argument("--y-max", type=float, default=None, help="Y-axis maximum (optional)")
@@ -342,17 +342,17 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_csv.add_argument(
         "--x-label-format",
         default=None,
-        help="Optional strftime format for x-axis labels (e.g. '%%d/%%m/%%y'). If omitted, mdcspc chooses a sensible default.",
+        help="Optional strftime format for x-axis labels (e.g. '%%d/%%m/%%Y'). If omitted, mdcspc chooses a sensible default.",
     )
     p_csv.add_argument(
         "--annotate-last-point",
         action="store_true",
-        help="Annotate the last point value on the chart.",
+        help="Annotate the final data point value on the chart.",
     )
     p_csv.add_argument(
         "--annotate-special-cause",
         action="store_true",
-        help="Annotate special-cause points with the rule label (can be busy on dense charts).",
+        help="Annotate special-cause points with rule label (may be crowded on dense charts).",
     )
 
     # -------------------------
@@ -373,7 +373,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_sql.add_argument(
         "--quiet",
         action="store_true",
-        help="Suppress chatter; still prints final '[INFO] Done.' only.",
+        help="Suppress non-essential output; only prints final '[INFO] Done.' message.",
     )
     p_sql.add_argument("--chart-mode", default="x_only", choices=["xmr", "x_only"], help="Chart mode")
     p_sql.add_argument("--value-col", default="Value", help="Value column name in the query result")
@@ -392,7 +392,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_sql.add_argument(
         "--y-label",
         default=None,
-        help="Y-axis label override (defaults to value column name, with units where known).",
+        help="Y-axis label override (defaults to value column name; units applied where configured).",
     )
     p_sql.add_argument("--y-min", type=float, default=None, help="Y-axis minimum (optional)")
     p_sql.add_argument("--y-max", type=float, default=None, help="Y-axis maximum (optional)")
@@ -411,17 +411,17 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
     p_sql.add_argument(
         "--x-label-format",
         default=None,
-        help="Optional strftime format for x-axis labels (e.g. '%%d/%%m/%%y'). If omitted, mdcspc chooses a sensible default.",
+        help="Optional strftime format for x-axis labels (e.g. '%%d/%%m/%%Y'). If omitted, mdcspc chooses a sensible default.",
     )
     p_sql.add_argument(
         "--annotate-last-point",
         action="store_true",
-        help="Annotate the last point value on the chart.",
+        help="Annotate the final data point value on the chart.",
     )
     p_sql.add_argument(
         "--annotate-special-cause",
         action="store_true",
-        help="Annotate special-cause points with the rule label (can be busy on dense charts).",
+        help="Annotate special-cause points with rule label (may be crowded on dense charts).",
     )
 
     _ = has_sqlite

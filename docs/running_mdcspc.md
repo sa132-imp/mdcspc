@@ -61,7 +61,7 @@ Use this route if starting with a CSV and want starter config:
 ### 1. Create starter config
 
 ```powershell
-mdcspc wizard --input tests\data\xmr_golden_input.csv --out-config working\wizard_real_test_2 --defaults
+mdcspc wizard --input tests\data\xmr_golden_input.csv --out-config C:\path\to\config --defaults
 ```
 
 * Detects available metrics
@@ -70,7 +70,7 @@ mdcspc wizard --input tests\data\xmr_golden_input.csv --out-config working\wizar
 ### 2. Add a recalculation / phase change
 
 ```powershell
-mdcspc recalc-wizard --config-dir working\wizard_real_test_2 --metric "Decimal+None+CC" --org "ORG_GOLD"
+mdcspc recalc-wizard --config-dir C:\path\to\config --metric "Decimal+None+CC" --org "ORG_GOLD"
 ```
 
 Example answers:
@@ -85,12 +85,12 @@ Updates `spc_phase_config.csv`.
 ### 3. Rebuild outputs
 
 ```powershell
-mdcspc export-csv --input tests\data\xmr_golden_input.csv --out working\wizard_real_test_2_out --config-dir working\wizard_real_test_2
+mdcspc export-csv --input tests\data\xmr_golden_input.csv --out C:\path\to\output --config-dir C:\path\to\config
 ```
 
 ### 4. Review outputs
 
-* Check charts in `working\wizard_real_test_2_out\charts`
+* Check charts in `C:\path\to\output\charts`
 * Confirm phase annotations appear top/bottom correctly
 * Check CSV summaries
 
@@ -101,7 +101,7 @@ mdcspc export-csv --input tests\data\xmr_golden_input.csv --out working\wizard_r
 1. Create blank templates:
 
 ```powershell
-mdcspc init-config --out working\init_config_test --force
+mdcspc init-config --out C:\path\to\config --force
 ```
 
 2. Edit config files manually as needed
@@ -126,7 +126,7 @@ date,value
 Example command:
 
 ```powershell
-mdcspc export-csv --input path\to\simple.csv --out working\simple_out
+mdcspc export-csv --input path\to\simple.csv --out C:\path\to\output
 ```
 
 If no grouping column exists, the export treats the file as one series and uses `MetricName = Series1` internally.
@@ -140,7 +140,7 @@ SQLite export expects a SQL query string that returns long-format time-series da
 Example:
 
 ```powershell
-mdcspc export-sqlite --db path\to\data.db --query "SELECT Month, Value, MetricName FROM your_table" --out working\sqlite_out
+mdcspc export-sqlite --db path\to\data.db --query "SELECT Month, Value, MetricName FROM your_table" --out C:\path\to\output
 ```
 
 ---

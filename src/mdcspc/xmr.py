@@ -404,15 +404,20 @@ def analyse_xmr(
 
     # Minimal structure when not enough points overall
     if n_points < min_points_for_spc:
+        work = work.copy()
+
+        work["low_data_warning"] = (
+            f"Low data: {n_points} points (< {min_points_for_spc}) - SPC limits not calculated"
+        )
+
         print(f"[WARN] Only {n_points} points (< {min_points_for_spc}) so SPC limits not calculated")
 
-        work = work.copy()
-        # Even if phase_starts provided, for very short series we keep it simple
         work["phase"] = 1
         work["mean"] = np.nan
         work["sigma"] = np.nan
         work["ucl"] = np.nan
         work["lcl"] = np.nan
+        work["low_data_spc"] = True
 
         for r in ("trend", "shift", "2of3", "astronomical"):
             work[f"rule_{r}"] = False
