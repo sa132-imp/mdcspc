@@ -36,7 +36,13 @@ Month,Value
 
 ---
 
-# Step 1 — Install (usually done once)
+# Step 1 — Get and install the project
+
+For Draft 1, install from the GitHub project folder.
+
+First, clone or download the repository from GitHub.
+
+Then open a terminal in the project folder and run:
 
 pip install -e .
 
