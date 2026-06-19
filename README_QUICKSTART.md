@@ -36,21 +36,32 @@ Month,Value
 
 ---
 
-# Step 1 — Get and install the project
+## Step 1 — Install (usually done once)
 
-For Draft 1, install from the GitHub project folder.
+To use MDCSPC, you must first get the project onto your machine.
 
-First, clone or download the repository from GitHub.
+This can be done in one of two ways:
 
-Then open a terminal in the project folder and run:
+### Option A — If you have been given the project folder directly
 
-pip install -e .
+Open a terminal in the project folder and run:
 
-After installation, you can run:
+    pip install -e .
 
-mdcspc --help
+This installs the tool locally so the `mdcspc` command becomes available.
 
 ---
+
+### Option B — If you are using Git
+
+Clone the repository first:
+
+    git clone https://github.com/sa132-imp/mdcspc.git
+    cd mdcspc
+
+Then install:
+
+    pip install -e .
 
 # Step 2 — Run a simple chart
 
