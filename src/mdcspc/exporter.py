@@ -94,12 +94,12 @@ def _load_phase_config(
     quiet: bool = False,
 ) -> Optional[Dict[Tuple, List[pd.Timestamp]]]:
     """
-    Load optional phase configuration, preferring:
+    Load optional phase configuration.
 
+    Preferred location:
         config/spc_phase_config.csv
 
-    and falling back to:
-
+    Legacy fallback:
         working/spc_phase_config.csv
 
     Expected columns:
@@ -291,12 +291,12 @@ def _load_target_config(
     quiet: bool = False,
 ) -> Optional[pd.DataFrame]:
     """
-    Load optional target configuration, preferring:
+    Load optional target configuration.
 
+    Preferred location:
         config/spc_target_config.csv
 
-    and falling back to:
-
+    Legacy fallback:
         working/spc_target_config.csv
     """
     canonical_path = config_dir / "spc_target_config.csv"
@@ -307,14 +307,16 @@ def _load_target_config(
         _log(quiet, f"[INFO] Loading target configuration from central config: {config_path}")
     elif legacy_path.exists():
         config_path = legacy_path
-        print(
-            "[INFO] Loading target configuration from working directory "
-            f"(legacy/demo): {config_path}"
+        _log(
+            quiet,
+            "[INFO] Loading target configuration from legacy working directory: "
+            f"{config_path}",
         )
     else:
-        print(
-            "[INFO] No spc_target_config.csv found in config/ or working/ – "
-            "no time-varying targets will be used."
+        _log(
+            quiet,
+            "[INFO] No spc_target_config.csv found in config directory or legacy working directory - "
+            "no time-varying targets will be used.",
         )
         return None
 

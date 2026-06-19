@@ -1,3 +1,4 @@
+# Utility script: regenerates golden CSV fixtures from dataset_lp.csv. Not a pytest test.
 from pathlib import Path
 import pandas as pd
 

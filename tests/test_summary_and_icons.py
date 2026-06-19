@@ -42,7 +42,7 @@ def _pick_input_csv() -> Path:
     Pick a stable CSV to test against.
 
     Uses a canonical sample file stored under tests/data so the test suite
-    does not depend on personal scratch folders such as working/.
+    does not depend on local scratch folders.
     """
     if DEFAULT_INPUT.exists():
         return DEFAULT_INPUT

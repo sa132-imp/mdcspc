@@ -56,6 +56,8 @@ Do not use `python -m src.mdcspc.cli` as normal package usage. That is a repo-ro
 
 ## Guided setup route
 
+The examples below use test data included in the repository. Replace the input paths with your own files when using mdcspc on your data.
+
 Use this route if starting with a CSV and want starter config:
 
 ### 1. Create starter config

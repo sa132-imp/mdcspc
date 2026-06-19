@@ -451,6 +451,7 @@ def _main_impl(argv: Optional[list[str]] = None) -> int:
         )
 
     if args.command == "recalc-wizard":
+        print(f"[INFO] Using config dir: {Path(args.config_dir).resolve()}")
         return recalc_wizard(
             config_dir=args.config_dir,
             metric=args.metric,

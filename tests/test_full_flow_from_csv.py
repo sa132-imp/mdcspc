@@ -14,7 +14,7 @@ def test_full_flow_from_csv_writes_summary_and_charts(tmp_path: Path) -> None:
     - Assert summary CSV is created
     - Assert at least one chart PNG is created
 
-    This avoids any GUI operations and does not depend on working/.
+    This avoids any GUI operations and does not depend on local scratch files.
     """
     project_root = Path(__file__).resolve().parent.parent
     input_csv = project_root / "tests" / "data" / "xmr_golden_input.csv"
