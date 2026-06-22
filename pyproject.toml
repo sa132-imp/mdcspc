@@ -15,7 +15,7 @@ authors = [
 dependencies = [
   "pandas>=2.2",
   "matplotlib>=3.8",
-  "numpy>=1.24,<2.0",
+  "numpy>=1.26,<3.0",
 ]
 
 [project.optional-dependencies]
