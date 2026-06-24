@@ -53,27 +53,25 @@ def _log(quiet: bool, msg: str) -> None:
 
 
 def _detect_group_cols(df: pd.DataFrame) -> List[str]:
-    """Guess sensible group columns from the input DataFrame."""
+    """
+    Guess sensible group columns from the input DataFrame.
+
+    Draft 1 behaviour:
+    - Only auto-detect recognised grouping columns.
+    - Do not treat every spare column as a group.
+    - If no recognised grouping columns exist, return an empty list.
+      The exporter will then use the existing single-series fallback.
+    """
     if "OrgCode" in df.columns and "MetricName" in df.columns:
         return ["OrgCode", "MetricName"]
+
+    if "MetricName" in df.columns:
+        return ["MetricName"]
 
     if "OrgCode" in df.columns:
         return ["OrgCode"]
 
-    exclude = {"Month", "Date", "Value"}
-    candidate: List[str] = []
-    for col in df.columns:
-        if col not in exclude:
-            candidate.append(col)
-
-    if not candidate:
-        raise ValueError(
-            "Could not detect group columns. "
-            "Expected at least 'OrgCode' and/or 'MetricName', "
-            "or some other non-date, non-value column."
-        )
-
-    return candidate
+    return []
 
 
 def _safe_filename(parts: Sequence[object]) -> str:
