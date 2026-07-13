@@ -264,14 +264,14 @@ then look for a folder called:
 outputs
 ```
 
-Inside the output folder, you should see files such as:
+Inside the output folder, you should see:
 
-* chart images
-* summary CSV files
+* a `charts` subfolder containing PNG chart images
+* a summary CSV file containing the analysis results
 
 The chart images are saved as PNG files. You can open these like normal image files.
 
-The summary CSV files can be opened in Excel.
+The summary CSV file can be opened in Excel.
 
 ---
 

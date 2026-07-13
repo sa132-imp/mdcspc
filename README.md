@@ -392,6 +392,17 @@ Community Team North
 
 When multiple groups exist, each metric/group combination is analysed separately.
 
+#### OrgCode
+
+`OrgCode` is an optional identifier used when data contains formal organisation codes.
+
+It can be used alongside `Group`:
+
+* OrgCode for formal organisational identifiers
+* Group for wider categories such as teams, services, or other groupings
+
+When present, OrgCode can be used as part of the series grouping behaviour.
+
 ---
 
 ## Grouping behaviour
@@ -786,60 +797,6 @@ summary, results = export_spc_from_dataframe(
 )
 ```
 
-### Example DataFrame structure
-
-A DataFrame should follow the same long-format structure as CSV input.
-
-Example:
-
-```python
-import pandas as pd
-
-data = pd.DataFrame(
-    {
-        "Period": [
-            "2024-01-01",
-            "2024-02-01",
-            "2024-03-01"
-        ],
-        "Value": [
-            9578,
-            9396,
-            9955
-        ],
-        "MetricName": [
-            "ED_Attends",
-            "ED_Attends",
-            "ED_Attends"
-        ],
-        "Group": [
-            "Organisation A",
-            "Organisation A",
-            "Organisation A"
-        ]
-    }
-)
-```
-
-The DataFrame route is particularly useful where the source data comes from an enterprise data warehouse.
-
-A common pattern is:
-
-```
-SQL database / warehouse
-          |
-          v
- Python data preparation
-          |
-          v
- pandas DataFrame
-          |
-          v
-       mdcspc
-```
-
----
-
 ## SQLite workflow
 
 SQLite input is available for lightweight local database workflows.
@@ -1006,7 +963,7 @@ Example:
 
 Controls chart generation mode.
 
-If `--chart-mode` is not provided, the default is `x_only`.
+If `--chart-mode` is not provided, the default is `x_only`. The default produces the X chart only; use `--chart-mode xmr` to generate the full XmR chart pair including the moving range chart.
 
 Available options:
 
@@ -1042,9 +999,9 @@ Generates SPC outputs from a SQLite database query.
 Example:
 
 ```powershell
-mdcspc export-sqlite
-    --db data.db
-    --query "SELECT Period, Value FROM measures"
+mdcspc export-sqlite `
+    --db data.db `
+    --query "SELECT Period, Value FROM measures" `
     --out output
 ```
 
@@ -1059,8 +1016,8 @@ The wizard creates starter configuration files from an input CSV.
 Example:
 
 ```powershell
-mdcspc wizard
-    --input data.csv
+mdcspc wizard `
+    --input data.csv `
     --out-config config
 ```
 
@@ -1387,7 +1344,7 @@ Charts are designed for:
 
 ## Summary files
 
-Summary CSV files provide structured outputs from the analysis.
+The summary CSV file provides structured outputs from the analysis.
 
 They can be used for:
 
@@ -1529,23 +1486,6 @@ Documentation and features may continue to evolve as the package develops.
 
 ---
 
-## Support
-
-For support queries, provide:
-
-* the command used
-* the error message
-* sample input data structure
-* column names
-* configuration files if relevant
-
-Support contact:
-
-[england.makingdatacount@nhs.net](mailto:england.makingdatacount@nhs.net)
-
-When reporting issues, include enough information to reproduce the problem where possible.
-
----
 ## Troubleshooting
 
 This section covers common issues and checks when using `mdcspc`.
@@ -1770,6 +1710,23 @@ current-folder/
 
 ---
 
+## Support
+
+For support queries, provide:
+
+* the command used
+* the error message
+* sample input data structure
+* column names
+* configuration files if relevant
+
+Support contact:
+
+[england.makingdatacount@nhs.net](mailto:england.makingdatacount@nhs.net)
+
+When reporting issues, include enough information to reproduce the problem where possible.
+
+---
 ## Reproducibility recommendations
 
 For repeatable analytical workflows:
