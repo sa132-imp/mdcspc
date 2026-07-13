@@ -52,9 +52,11 @@ def test_cli_wizard_writes_starter_configs(tmp_path: Path) -> None:
 
     metric_cfg = out_cfg / "metric_config.csv"
     target_cfg = out_cfg / "spc_target_config.csv"
+    phase_cfg = out_cfg / "spc_phase_config.csv"
 
     assert metric_cfg.exists(), "Expected metric_config.csv to be written by wizard."
     assert target_cfg.exists(), "Expected spc_target_config.csv to be written by wizard."
+    assert phase_cfg.exists(), "Expected spc_phase_config.csv to be written by wizard."
 
     metric_df = pd.read_csv(metric_cfg)
     assert "MetricName" in metric_df.columns
@@ -68,6 +70,17 @@ def test_cli_wizard_writes_starter_configs(tmp_path: Path) -> None:
 
     target_df = pd.read_csv(target_cfg)
     assert list(target_df.columns) == ["OrgCode", "MetricName", "EffectiveFrom", "TargetValue"]
+
+    phase_df = pd.read_csv(phase_cfg)
+    assert list(phase_df.columns) == [
+        "OrgCode",
+        "Group",
+        "MetricName",
+        "PhaseStart",
+        "Annotation",
+        "ShowOnChart",
+        "AnnotationPosition",
+    ]
 
     assert "Configuration for" in (completed.stdout or "")
 

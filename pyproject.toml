@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "NHS-friendly SPC toolkit (Making Data Count style) with XmR charts, special-cause rules, and icon summaries."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
   { name = "Adam Smith" }
 ]

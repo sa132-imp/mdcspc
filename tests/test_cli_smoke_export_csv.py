@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 
 def _env_with_project_on_path(project_root: Path) -> dict:
     env = os.environ.copy()
@@ -247,6 +249,84 @@ def test_cli_export_csv_without_grouping_column_uses_single_series_fallback(tmp_
     assert charts_dir.exists(), f"Expected charts dir not found: {charts_dir}"
     assert chart_path.exists(), f"Expected fallback single-series chart not found: {chart_path}"
 
+
+def test_cli_export_csv_with_group_column_auto_detects_group(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parent.parent
+
+    input_csv = tmp_path / "group_column_input.csv"
+    input_csv.write_text(
+        "date,MetricName,Group,value\n"
+        "11/01/2026,Falls,Ward_A,10\n"
+        "18/01/2026,Falls,Ward_A,12\n"
+        "25/01/2026,Falls,Ward_A,11\n"
+        "01/02/2026,Falls,Ward_A,13\n"
+        "08/02/2026,Falls,Ward_A,15\n"
+        "15/02/2026,Falls,Ward_A,14\n"
+        "22/02/2026,Falls,Ward_A,16\n"
+        "01/03/2026,Falls,Ward_A,15\n"
+        "08/03/2026,Falls,Ward_A,17\n"
+        "15/03/2026,Falls,Ward_A,18\n"
+        "11/01/2026,Falls,Ward_B,8\n"
+        "18/01/2026,Falls,Ward_B,9\n"
+        "25/01/2026,Falls,Ward_B,10\n"
+        "01/02/2026,Falls,Ward_B,9\n"
+        "08/02/2026,Falls,Ward_B,11\n"
+        "15/02/2026,Falls,Ward_B,12\n"
+        "22/02/2026,Falls,Ward_B,11\n"
+        "01/03/2026,Falls,Ward_B,13\n"
+        "08/03/2026,Falls,Ward_B,12\n"
+        "15/03/2026,Falls,Ward_B,14\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "export_out"
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "mdcspc.cli",
+        "export-csv",
+        "--input",
+        str(input_csv),
+        "--out",
+        str(out_dir),
+        "--value-col",
+        "value",
+        "--index-col",
+        "date",
+    ]
+
+    completed = subprocess.run(
+        cmd,
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env_with_project_on_path(project_root),
+    )
+
+    combined_output = f"{completed.stdout}\n{completed.stderr}"
+
+    assert completed.returncode == 0
+    assert "Using group columns: ['Group', 'MetricName']" in combined_output
+    assert "Ward_A__Falls" in combined_output
+    assert "Ward_B__Falls" in combined_output
+    assert "Traceback" not in combined_output
+
+    summary_path = out_dir / "spc_summary_from_input.csv"
+    charts_dir = out_dir / "charts"
+
+    assert summary_path.exists(), f"Expected summary file not found: {summary_path}"
+    assert charts_dir.exists(), f"Expected charts dir not found: {charts_dir}"
+    assert (charts_dir / "Ward_A__Falls.png").exists()
+    assert (charts_dir / "Ward_B__Falls.png").exists()
+
+    summary = pd.read_csv(summary_path)
+
+    assert "Group" in summary.columns
+    assert "MetricName" in summary.columns
+    assert set(summary["Group"].astype(str)) == {"Ward_A", "Ward_B"}
+
 def test_cli_export_csv_missing_index_column_shows_plain_english_error(tmp_path: Path) -> None:
     project_root = Path(__file__).resolve().parent.parent
 
@@ -428,3 +508,74 @@ def test_cli_export_csv_bad_numeric_values_shows_plain_english_error(tmp_path: P
     assert "Traceback" not in combined_output
 
 
+def test_cli_export_csv_direction_lower_sets_lower_is_better(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parent.parent
+
+    input_csv = tmp_path / "lower_direction_input.csv"
+    input_csv.write_text(
+        "date,MetricName,value\n"
+        "01/01/2025,Waiting_Time,10\n"
+        "01/02/2025,Waiting_Time,11\n"
+        "01/03/2025,Waiting_Time,12\n"
+        "01/04/2025,Waiting_Time,13\n"
+        "01/05/2025,Waiting_Time,14\n"
+        "01/06/2025,Waiting_Time,15\n"
+        "01/07/2025,Waiting_Time,16\n"
+        "01/08/2025,Waiting_Time,17\n"
+        "01/09/2025,Waiting_Time,18\n"
+        "01/10/2025,Waiting_Time,19\n",
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "export_out"
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "mdcspc.cli",
+        "export-csv",
+        "--input",
+        str(input_csv),
+        "--out",
+        str(out_dir),
+        "--value-col",
+        "value",
+        "--index-col",
+        "date",
+        "--direction",
+        "lower",
+    ]
+
+    completed = subprocess.run(
+        cmd,
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env_with_project_on_path(project_root),
+    )
+
+    if completed.returncode != 0:
+        raise AssertionError(
+            "CLI command failed.\n"
+            f"Return code: {completed.returncode}\n"
+            f"STDOUT:\n{completed.stdout}\n"
+            f"STDERR:\n{completed.stderr}\n"
+        )
+
+    summary_path = out_dir / "spc_summary_from_input.csv"
+
+    assert summary_path.exists(), f"Expected summary file not found: {summary_path}"
+
+    summary = pd.read_csv(summary_path)
+
+    assert "direction" in summary.columns
+    assert set(summary["direction"].astype(str)) == {"lower_is_better"}
+
+def test_cli_export_csv_direction_defaults_to_neutral() -> None:
+    from mdcspc.cli import _build_parser
+
+    parser = _build_parser(has_sqlite=True)
+    args = parser.parse_args(["export-csv", "--input", "data.csv", "--out", "output"])
+
+    assert args.direction == "neutral"

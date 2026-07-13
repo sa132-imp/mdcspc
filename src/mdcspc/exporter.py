@@ -62,16 +62,9 @@ def _detect_group_cols(df: pd.DataFrame) -> List[str]:
     - If no recognised grouping columns exist, return an empty list.
       The exporter will then use the existing single-series fallback.
     """
-    if "OrgCode" in df.columns and "MetricName" in df.columns:
-        return ["OrgCode", "MetricName"]
+    recognised_group_cols = ["OrgCode", "Group", "MetricName"]
 
-    if "MetricName" in df.columns:
-        return ["MetricName"]
-
-    if "OrgCode" in df.columns:
-        return ["OrgCode"]
-
-    return []
+    return [col for col in recognised_group_cols if col in df.columns]
 
 
 def _safe_filename(parts: Sequence[object]) -> str:
@@ -1259,6 +1252,7 @@ def export_spc_from_csv(
     summary_filename: str = "spc_summary_from_input.csv",
     charts_subdir: str = "charts",
     chart_mode: str = "x_only",
+    direction: str = "higher_is_better",
     plot_options: Optional[SpcPlotOptions] = None,
     quiet: bool = False,
 ) -> Tuple[pd.DataFrame, Any]:
@@ -1472,7 +1466,7 @@ def export_spc_from_csv(
 
         summary = summarise_xmr_by_group(
             multi,
-            direction="higher_is_better",
+            direction=direction,
             lookback_points=12,
             directions_by_group=directions_by_group,
             targets_by_group=targets_by_group,
@@ -1529,7 +1523,7 @@ def export_spc_from_csv(
 
         summary = summarise_xmr_by_group(
             multi,
-            direction="higher_is_better",
+            direction=direction,
             lookback_points=12,
             directions_by_group=directions_by_group,
             targets_by_group=targets_by_group,

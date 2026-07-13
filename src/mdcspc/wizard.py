@@ -99,6 +99,7 @@ def run_wizard(input_csv: Path, out_config: Path, defaults: bool = False) -> int
 
     phase_columns = [
         "OrgCode",
+        "Group",
         "MetricName",
         "PhaseStart",
         "Annotation",

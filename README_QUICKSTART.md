@@ -2,7 +2,9 @@
 
 This guide explains how to use `mdcspc` in simple terms.
 
-It is written for NHS analysts who want to turn data into SPC charts without having to understand the technical details first.
+It is written for analysts who want to turn data into SPC charts without having to understand the technical details first.
+
+This package uses the NHS England Making Data Count approach, which supports better use of statistical process control instead of RAG reporting. You can find more about the programme on the [Making Data Count FutureNHS workspace](https://future.nhs.uk/connect.ti/MDC/groupHome).
 
 ---
 
@@ -21,33 +23,59 @@ You give it data. It gives you charts and summaries.
 
 # What you need first
 
-You need a CSV file with data in it.
+For this quickstart, you need a CSV file with data in it.
 
-A CSV file is a simple data file. You can create one by saving or exporting data from Excel as a `.csv` file.
+A lot of data might be in Excel spreadsheets. That is fine, but for this quickstart you need to save or export the Excel sheet as a `.csv` file first. This package does not read Excel workbook files such as `.xlsx` directly from the command line.
 
-Your data should have at least:
+However, `mdcspc` can also be used in more advanced Python workflows, where data has already been queried, cleaned, and prepared as a pandas DataFrame. This is likely to be the best route when your source data comes from a larger database or data warehouse. Other input methods and more advanced workflows are covered in the full README, but this guide starts with CSV because it is the simplest first workflow.
 
-* one column for time, such as month, week, date, or period
-* one column containing the numbers you want to chart
+For the recommended workflow, your CSV should have these columns:
+
+* `Period` — the date or reporting period being measured, such as a day, week, or month.
+* `Value` — the number you want to chart
+* `MetricName` — the name of what is being measured
+* `Group` — the ward, site, service, specialty, team, organisation, or other group being charted
+
+Rows with the same `MetricName` and `Group` are treated as one series and produce one chart. Different `MetricName` or `Group` values produce separate charts.
+
+Each series needs at least 10 data points to calculate SPC limits but should aim for 15+ data points as per MDC programme recommendation.
+
+Data should be in these formats:
+
+* `Period` should be a date or date-like value, for example `2024-01-01`
+* `Value` should be numeric, such as an integer, decimal, percentage, rate, or time value
+* `MetricName` should be text
+* `Group` should be text
+
+Percentages, rates, and time values should still be stored as numbers in the CSV. For example, use `0.95` or `95`, not `95%`.
 
 For example:
-
 ```csv
-Month,Value
-2024-01,10
-2024-02,12
-2024-03,11
-2024-04,14
+Period,Value,MetricName,Group
+2024-01-01,9578,ED_Attends,Org A
+2024-02-01,9396,ED_Attends,Org A
+2024-03-01,9955,ED_Attends,Org A
+2024-04-01,9453,ED_Attends,Org A
+2024-05-01,9069,ED_Attends,Org A
+2024-06-01,9453,ED_Attends,Org A
+2024-07-01,9791,ED_Attends,Org A
+2024-08-01,9181,ED_Attends,Org A
+2024-09-01,9711,ED_Attends,Org A
+2024-10-01,9678,ED_Attends,Org A
+2024-11-01,9725,ED_Attends,Org A
+2024-12-01,9888,ED_Attends,Org A
 ```
 
 In this example:
 
-* `Month` is the time column
-* `Value` is the number column
+* `Period` is the month date
+* `Value` is the number of attends
+* `MetricName` is ED attends
+* `Group` says which organisation the data belongs to
 
-Your CSV can contain extra columns, but the simplest first test is to start with just the time column and value column. Once that works, you can try a larger file.
+This four-column structure is the recommended starting point because it makes the output easier to understand and reuse.
 
-The tool needs enough data points to calculate SPC limits.
+For the simplest possible first test, `mdcspc` can also run on a CSV with just a date column and a value column. In that case, it treats the file as one series.
 
 ---
 
@@ -55,9 +83,17 @@ The tool needs enough data points to calculate SPC limits.
 
 You usually only need to do this once.
 
-To use `mdcspc`, the package must be installed on your machine so that the `mdcspc` command is available.
+To use `mdcspc`, the package must be installed in the Python environment you are using. This makes the `mdcspc` command available.
 
-There are two common ways to do this.
+You need to run the install command in a terminal. This could be:
+
+* Windows PowerShell
+* Command Prompt
+* The terminal inside VS Code, RStudio, Positron, PyCharm, or another coding tool
+
+The important thing is that the terminal is using the Python environment where you want `mdcspc` to be installed.
+
+There are two common ways to install it.
 
 ---
 
@@ -65,21 +101,19 @@ There are two common ways to do this.
 
 Use this option if someone has already given you the `mdcspc` project folder.
 
-Open a terminal in the project folder.
+Open your terminal and move into the project folder.
 
 The project folder is the folder that contains files such as:
 
-```text
-README.md
-pyproject.toml
-src
-```
+    README.md
+    pyproject.toml
+    src
+
+You should run the install command from inside that folder.
 
 Then run:
 
-```powershell
-pip install -e .
-```
+    pip install -e .
 
 Here is what this means:
 
@@ -96,29 +130,23 @@ After this has finished, the `mdcspc` command should be available.
 
 Use this option if you need to download the project from GitHub.
 
+Open your terminal in the folder where you want the project folder to be created.
+
 First, clone the repository:
 
-```powershell
-git clone https://github.com/sa132-imp/mdcspc.git
-```
+    git clone https://github.com/sa132-imp/mdcspc.git
 
 This downloads the project into a new folder called:
 
-```text
-mdcspc
-```
+    mdcspc
 
 Move into that folder:
 
-```powershell
-cd mdcspc
-```
+    cd mdcspc
 
 Then install the package:
 
-```powershell
-pip install -e .
-```
+    pip install -e .
 
 After this has finished, the `mdcspc` command should be available.
 
@@ -128,11 +156,15 @@ After this has finished, the `mdcspc` command should be available.
 
 Run:
 
-```powershell
-mdcspc --help
-```
+    mdcspc --help
 
 If the install worked, you should see a help message showing the available `mdcspc` commands.
+
+Each command also has its own help page. For example:
+
+    mdcspc export-csv --help
+
+This shows the options available when creating SPC charts from a CSV file.
 
 If you get an error saying that `mdcspc` is not recognised, the package has not been installed correctly or your terminal is not using the right Python environment.
 
@@ -144,9 +176,7 @@ Now run `mdcspc` on a CSV file.
 
 The command below tells `mdcspc` to read a CSV file, analyse it, and save the results in an output folder.
 
-```powershell
-mdcspc export-csv --input your_data.csv --out output_folder
-```
+    mdcspc export-csv --input your_data.csv --out output_folder --direction neutral
 
 Here is what each part means:
 
@@ -154,6 +184,11 @@ Here is what each part means:
 * `export-csv` tells `mdcspc` that your input data is in a CSV file.
 * `--input` tells `mdcspc` where your CSV file is.
 * `your_data.csv` is the CSV file you want to analyse. Replace this with your actual file name or file path.
+* `--direction` tells `mdcspc` how to interpret unusual changes.
+  * Use `higher` when higher values are better.
+  * Use `lower` when lower values are better.
+  * Use `neutral` when neither higher nor lower values should automatically be treated as better.
+  * The setting applies to every series in the CSV. If different metrics need different directions, use configuration files instead.
 * `--out` tells `mdcspc` where to save the results.
 * `output_folder` is the folder where charts and summary files will be created. Replace this with the folder name you want to use.
 
@@ -163,21 +198,17 @@ Here is what each part means:
 
 If your CSV file is called `sample_spc.csv` and it is in the folder you are currently working in, run:
 
-```powershell
-mdcspc export-csv --input sample_spc.csv --out outputs
-```
+    mdcspc export-csv --input sample_spc.csv --out outputs --direction neutral
 
 This will read:
 
-```text
-sample_spc.csv
-```
+    sample_spc.csv
 
 and save the results in a folder called:
 
-```text
-outputs
-```
+    outputs
+
+Because `outputs` is a relative folder name, it will be created in the folder where you run the command.
 
 ---
 
@@ -187,11 +218,13 @@ If your CSV file is somewhere else, give the full path to the file.
 
 For example:
 
-```powershell
-mdcspc export-csv --input "C:\Users\your.name\Documents\sample_spc.csv" --out outputs
-```
+    mdcspc export-csv --input "C:\Users\your.name\Documents\sample_spc.csv" --out outputs --direction neutral
 
 The quote marks are useful when a file path contains spaces.
+
+This will read the CSV file from your `Documents` folder and save the results in a folder called `outputs`.
+
+Because `outputs` is a relative folder name, the output folder will be created in the folder where you run the command, not necessarily in the same folder as the CSV file.
 
 ---
 
@@ -201,9 +234,7 @@ You can also give a full path for the output folder.
 
 For example:
 
-```powershell
-mdcspc export-csv --input "C:\Users\your.name\Documents\sample_spc.csv" --out "C:\Users\your.name\Documents\mdcspc_outputs"
-```
+    mdcspc export-csv --input "C:\Users\your.name\Documents\sample_spc.csv" --out "C:\Users\your.name\Documents\mdcspc_outputs" --direction neutral
 
 This will:
 
@@ -224,7 +255,7 @@ Look in the output folder you chose.
 For example, if you used:
 
 ```powershell
-mdcspc export-csv --input sample_spc.csv --out outputs
+mdcspc export-csv --input sample_spc.csv --out outputs --direction neutral
 ```
 
 then look for a folder called:
@@ -251,18 +282,33 @@ Each SPC chart shows your data over time.
 It usually includes:
 
 * the data points
-* a centre line, which is the average
+* a centre line, which is the mean average
 * an upper control limit
 * a lower control limit
-* signals showing when something unusual may have happened
+* signals showing if something unusual may have happened
 
 You do not need to understand all the statistics to start using the chart.
 
-The main idea is:
+The main idea is that there are two types of variation:
 
-* points inside the limits usually show normal variation
-* points or patterns outside the expected range may suggest something unusual has happened
-* unusual signals are worth investigating, not automatically treating as good or bad
+* common cause variation — the usual variation you would expect from a process when there is no clear signal of unusual change
+* special cause variation — variation that may suggest something unusual has happened
+
+`mdcspc` looks for four types of special-cause signal:
+
+* an astronomical point — a point outside the control limits
+* a shift — a run of points all above or all below the centre line
+* a trend — a run of points all increasing or all decreasing
+* two out of three points close to a control limit
+
+`mdcspc` uses different coloured dots to show common cause variation and special-cause signals:
+
+* grey dots show common cause variation
+* blue dots show special-cause improvement
+* orange dots show special-cause concern
+* purple dots show special-cause change where the direction is neutral or depends on context
+
+These signals are prompts for investigation. They do not automatically prove that performance has got better or worse.
 
 ---
 
@@ -272,36 +318,50 @@ The setup wizard is optional.
 
 You do not need it for a simple first chart.
 
-Use the wizard when you want help creating a configuration folder for more controlled or repeatable chart production.
+Use the wizard when you want help creating configuration files for more controlled or repeatable chart production.
+
+The wizard reads the metrics in your CSV file and creates editable CSV configuration files. You can review or update these files before using them with future `mdcspc` runs.
+
+A configuration folder contains CSV files that tell `mdcspc` how to handle your charts. These files can control things such as:
+
+* which metrics are included
+* how metrics are named in outputs
+* whether higher or lower values are better
+* where recalculation points or phase changes start
+* whether targets are used
+
+Configuration files are particularly useful when you are producing several charts, rerunning the same analysis later, or when different metrics need different settings. For example, one metric may improve when values increase, while another improves when values decrease.
 
 The command is:
 
-```powershell
-mdcspc wizard --input your_data.csv --out-config config_folder
-```
+    mdcspc wizard --input your_data.csv --out-config config_folder
 
 Here is what each part means:
 
-* `mdcspc` is the command-line tool
-* `wizard` starts the setup wizard
-* `--input` tells the wizard where your CSV file is
-* `your_data.csv` is the CSV file you want to use
-* `--out-config` tells the wizard where to save the configuration files
-* `config_folder` is the folder where the configuration files will be created
+* `mdcspc` is the command-line tool.
+* `wizard` starts the setup wizard.
+* `--input` tells the wizard where your CSV file is.
+* `your_data.csv` is the CSV file you want to use.
+* `--out-config` tells the wizard where to save the configuration files.
+* `config_folder` is the folder where the configuration files will be created.
 
 For example:
 
-```powershell
-mdcspc wizard --input sample_spc.csv --out-config config
-```
+    mdcspc wizard --input sample_spc.csv --out-config config
 
 This creates configuration files in a folder called:
 
-```text
-config
-```
+    config
 
-Most new users can ignore this at first and just use `export-csv`.
+The configuration folder will contain files such as:
+
+* `metric_config.csv`
+* `spc_phase_config.csv`
+* `spc_target_config.csv`
+
+You can open these files in Excel or another spreadsheet tool, edit them if needed, save them as CSV files, and then use them when running `mdcspc`.
+
+Most new users can ignore this at first and use `export-csv` directly. Move to configuration files when you need repeatable settings or different options for different metrics.
 
 ---
 
@@ -313,14 +373,15 @@ This usually means one of these things:
 
 * there is not enough data
 * the value column does not contain usable numbers
-* the time column is not being read correctly
+* the date/period column is not being read correctly
 * the wrong column has been selected
 
 Check that your CSV has:
 
-* one time column
+* one date/period  column
 * one numeric value column
 * enough rows to calculate SPC limits
+* valid metric and grouping columns if you are using multiple series
 
 ---
 
@@ -332,20 +393,21 @@ Check your CSV file.
 
 You need:
 
-* a column for time, date, month, week, or period
+* a column containing dates or date-like periods (for example day, week, or month)
 * a column containing the numbers you want to chart
+* `MetricName` and grouping columns if you are producing multiple series
 
 If your column names are unusual, you may need to tell `mdcspc` which columns to use.
 
 For example:
 
 ```powershell
-mdcspc export-csv --input sample_spc.csv --out outputs --index-col Month --value-col Value
+mdcspc export-csv --input sample_spc.csv --out outputs --index-col Month --value-col Value --direction neutral
 ```
 
 Here:
 
-* `--index-col Month` tells `mdcspc` to use the `Month` column for time
+* `--index-col Month` tells `mdcspc` to use the `Month` column as the date/period column
 * `--value-col Value` tells `mdcspc` to use the `Value` column for the numbers
 
 Change `Month` and `Value` to match the column names in your own CSV file.
@@ -360,6 +422,7 @@ Check:
 * the output folder path is correct
 * you have permission to write files into that folder
 * the folder has not been created somewhere else because of where the terminal was opened
+* you are looking in the output folder created by the `--out` option
 
 If you used a relative folder name such as:
 
@@ -380,7 +443,7 @@ If the file is not in your current folder, use the full path.
 For example:
 
 ```powershell
-mdcspc export-csv --input "C:\Users\your.name\Documents\sample_spc.csv" --out outputs
+mdcspc export-csv --input "C:\Users\your.name\Documents\sample_spc.csv" --out outputs --direction neutral
 ```
 
 Use quote marks around paths that contain spaces.
@@ -394,7 +457,7 @@ You do not need to understand statistics to start using `mdcspc`.
 The basic workflow is:
 
 1. prepare a CSV file
-2. run `mdcspc export-csv`
+2. run `mdcspc export-csv` with the options you need
 3. open the output folder
 4. review the chart and summary files
 
@@ -404,11 +467,17 @@ Start simple. Once that works, you can move on to configuration and more advance
 
 # Support
 
-If something fails, copy:
+`mdcspc` is currently a first draft release.
+
+If something fails, please report it using:
+
+england.makingdatacount@nhs.net
+
+When reporting a problem, include:
 
 * the command you ran
 * the error message
 * the first few rows of your CSV file
 * the column names in your CSV file
 
-Send these to your analytics support team or whoever supports your local use of `mdcspc`.
+This information will help diagnose problems and improve future versions of the package.

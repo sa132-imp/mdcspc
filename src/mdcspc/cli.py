@@ -258,7 +258,7 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
         "--out",
         dest="out_config",
         required=True,
-        help="Directory to write metric_config.csv and spc_target_config.csv into.",
+        help="Directory to write metric_config.csv, spc_target_config.csv, and spc_phase_config.csv into.",
     )
 
     # -------------------------
@@ -307,6 +307,15 @@ def _build_parser(has_sqlite: bool) -> argparse.ArgumentParser:
         help="Suppress non-essential output; only prints final '[INFO] Done.' message.",
     )
     p_csv.add_argument("--chart-mode", default="x_only", choices=["xmr", "x_only"], help="Chart mode")
+    p_csv.add_argument(
+        "--direction",
+        default="neutral",
+        choices=["higher", "lower", "neutral"],
+        help=(
+            "Direction of improvement for simple runs: higher, lower, or neutral. "
+            "For multiple metrics with different directions, use metric_config.csv."
+        ),
+    )
     p_csv.add_argument("--value-col", default="Value", help="Value column name in the input")
     p_csv.add_argument("--index-col", default="Month", help="Date/index column name in the input")
     p_csv.add_argument(
@@ -484,6 +493,11 @@ def _main_impl(argv: Optional[list[str]] = None) -> int:
             working_dir=Path(args.out),
             config_dir=config_dir_path,
             chart_mode=args.chart_mode,
+            direction={
+                "higher": "higher_is_better",
+                "lower": "lower_is_better",
+                "neutral": "neutral",
+            }[args.direction],
             value_col=args.value_col,
             index_col=args.index_col,
             summary_filename=args.summary_filename,
