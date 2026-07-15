@@ -366,7 +366,7 @@ def analyse_xmr(
     baseline_mode: str = "all",
     baseline_points: Optional[int] = None,
     min_points_for_spc: int = 10,
-    shift_length: int = 8,
+    shift_length: int = 6,
     trend_length: int = 6,
     rules: Sequence[str] = ("trend", "shift", "2of3", "astronomical"),
 ) -> XmrResult:
@@ -558,7 +558,7 @@ def analyse_xmr_by_group(
     baseline_mode: str = "all",
     baseline_points: Optional[int] = None,
     min_points_for_spc: int = 10,
-    shift_length: int = 8,
+    shift_length: int = 6,
     trend_length: int = 6,
     rules: Sequence[str] = ("trend", "shift", "2of3", "astronomical"),
 ) -> MultiXmrResult:
