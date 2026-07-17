@@ -586,6 +586,34 @@ def _draw_target_line(
         )
 
 
+def _calculate_phase_mr(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
+    """Calculate moving ranges and mR limits independently within each phase."""
+    result = pd.DataFrame(index=df.index)
+
+    if "phase" in df.columns:
+        result["phase"] = df["phase"]
+    else:
+        result["phase"] = 1
+
+    result["moving_range"] = float("nan")
+    result["mr_bar"] = float("nan")
+    result["mr_ucl"] = float("nan")
+
+    for _, phase_df in df.groupby(result["phase"], sort=False):
+        phase_mr = phase_df[value_col].diff().abs()
+        valid_mr = phase_mr.dropna()
+
+        result.loc[phase_df.index, "moving_range"] = phase_mr
+
+        if valid_mr.empty:
+            continue
+
+        mr_bar = float(valid_mr.mean())
+        result.loc[phase_df.index, "mr_bar"] = mr_bar
+        result.loc[phase_df.index, "mr_ucl"] = mr_bar * 3.268
+
+    return result
+
 # -------------------------------------------------------------------
 # Chart plotting
 # -------------------------------------------------------------------
@@ -1087,43 +1115,60 @@ def _plot_mdc_chart_for_series(
     # mR chart
     # -----------------------
     if chart_mode == "xmr" and ax_mr is not None:
-        mr = df[value_col].diff().abs()
+        mr_result = _calculate_phase_mr(df, value_col=value_col)
+        mr = mr_result["moving_range"]
 
-        ax_mr.plot(
-            x,
-            mr,
-            linestyle="-",
-            linewidth=1.5,
-            color="#A6A6A6",
-            zorder=1,
-        )
+        # Plot each phase separately so no line joins across a phase boundary.
+        for _, phase_df in mr_result.groupby("phase", sort=False):
+            phase_x = phase_df.index
+            phase_mr = phase_df["moving_range"]
 
-        mr_valid = mr.dropna()
-        ucl_mr = None
-        mr_bar = None
-
-        if not mr_valid.empty:
-            mr_bar = mr_valid.mean()
-            ucl_mr = mr_bar * 3.268  # Wheeler constant for XmR
-
-            ax_mr.hlines(
-                mr_bar,
-                xmin=x.min(),
-                xmax=x.max(),
-                colors="#000000",
-                linestyles="-",
+            ax_mr.plot(
+                phase_x,
+                phase_mr,
+                linestyle="-",
                 linewidth=1.5,
-                zorder=0,
+                color="#A6A6A6",
+                zorder=1,
             )
-            ax_mr.hlines(
-                ucl_mr,
-                xmin=x.min(),
-                xmax=x.max(),
-                colors="#777777",
-                linestyles="dashed",
-                linewidth=1.2,
-                zorder=0,
-            )
+
+            mr_bar_values = phase_df["mr_bar"].dropna()
+            mr_ucl_values = phase_df["mr_ucl"].dropna()
+
+            if not mr_bar_values.empty:
+                mr_bar = float(mr_bar_values.iloc[0])
+                ax_mr.hlines(
+                    mr_bar,
+                    xmin=phase_x.min(),
+                    xmax=phase_x.max(),
+                    colors="#000000",
+                    linestyles="-",
+                    linewidth=1.5,
+                    zorder=0,
+                )
+
+            if not mr_ucl_values.empty:
+                mr_ucl = float(mr_ucl_values.iloc[0])
+                ax_mr.hlines(
+                    mr_ucl,
+                    xmin=phase_x.min(),
+                    xmax=phase_x.max(),
+                    colors="#777777",
+                    linestyles="dashed",
+                    linewidth=1.2,
+                    zorder=0,
+                )
+
+                above = phase_mr > mr_ucl
+                if above.any():
+                    ax_mr.scatter(
+                        phase_x[above],
+                        phase_mr[above],
+                        s=40,
+                        color="#E46C0A",
+                        marker="D",
+                        zorder=3,
+                    )
 
         ax_mr.scatter(
             x,
@@ -1132,18 +1177,6 @@ def _plot_mdc_chart_for_series(
             color="#A6A6A6",
             zorder=2,
         )
-
-        if ucl_mr is not None:
-            above = mr > ucl_mr
-            if above.any():
-                ax_mr.scatter(
-                    x[above],
-                    mr[above],
-                    s=40,
-                    color="#E46C0A",
-                    marker="D",
-                    zorder=3,
-                )
 
         ax_mr.set_ylabel("Moving range")
         ax_mr.set_xlabel(index_label)
@@ -1606,4 +1639,3 @@ def export_spc_from_csv(
 
     finally:
         builtins.print = _orig_print
-
