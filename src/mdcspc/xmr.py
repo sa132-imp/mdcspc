@@ -400,7 +400,7 @@ def analyse_xmr(
     # Prepare working DataFrame
     work = _prepare_series(data, value_col=value_col, index_col=index_col)
     values = work[value_col]
-    n_points = len(values)
+    n_points = int(values.notna().sum())
 
     # Minimal structure when not enough points overall
     if n_points < min_points_for_spc:

@@ -41,3 +41,46 @@ def test_low_data_spc_triggers_fallback():
 
     # Assert: special cause off
     assert out["special_cause"].sum() == 0
+
+
+def test_missing_values_do_not_count_towards_minimum():
+    df = pd.DataFrame({
+        "date": pd.date_range("2024-01-01", periods=10, freq="MS"),
+        "value": [10, 11, 12, 13, None, 15, 16, 17, 18, 19],
+    })
+
+    result = analyse_xmr(
+        data=df,
+        value_col="value",
+        index_col="date",
+        min_points_for_spc=10,
+    )
+
+    out = result.data
+
+    assert "low_data_spc" in out.columns
+    assert bool(out["low_data_spc"].iloc[0]) is True
+    assert out["mean"].isna().all()
+    assert out["ucl"].isna().all()
+    assert out["lcl"].isna().all()
+
+
+def test_zero_counts_as_valid_observation():
+    df = pd.DataFrame({
+        "date": pd.date_range("2024-01-01", periods=10, freq="MS"),
+        "value": [10, 11, 12, 13, 0, 15, 16, 17, 18, 19],
+    })
+
+    result = analyse_xmr(
+        data=df,
+        value_col="value",
+        index_col="date",
+        min_points_for_spc=10,
+    )
+
+    out = result.data
+
+    assert "low_data_spc" not in out.columns
+    assert out["mean"].notna().all()
+    assert out["ucl"].notna().all()
+    assert out["lcl"].notna().all()
