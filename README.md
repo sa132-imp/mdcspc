@@ -595,12 +595,12 @@ SPC limits require enough observations to estimate variation.
 By default, `mdcspc` requires:
 
 ```
-10 points
+10 valid numeric observations
 ```
 
 to calculate SPC limits.
 
-Where a series has fewer than 10 observations:
+Where a series has fewer than 10 valid numeric observations:
 
 * control limits are not calculated
 * special cause rules are not applied
@@ -1237,6 +1237,8 @@ Examples:
 
 A phase configuration entry defines where recalculation begins.
 
+The 10-observation minimum applies to the series as a whole, not rigidly to every phase. Shorter phases still receive recalculated limits because phase selection is an analytical judgement. Where a phase contains fewer than 10 valid observations, the output includes a cautionary phase warning while retaining the calculated limits.
+
 Current structure:
 
 ```csv
@@ -1552,7 +1554,9 @@ SPC limits require enough observations to estimate variation.
 
 By default:
 
-* fewer than 10 points → no SPC limits calculated
+* fewer than 10 valid numeric observations → no SPC limits calculated
+* missing values do not count towards this minimum
+* genuine zero values do count
 * special cause rules are not applied
 
 Where possible, use longer time series to provide enough information about the process.
