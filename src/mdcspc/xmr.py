@@ -449,6 +449,8 @@ def analyse_xmr(
     work["sigma"] = np.nan
     work["ucl"] = np.nan
     work["lcl"] = np.nan
+    work["phase_low_data"] = False
+    work["phase_low_data_warning"] = ""
 
     for r in ("trend", "shift", "2of3", "astronomical"):
         work[f"rule_{r}"] = False
@@ -465,6 +467,14 @@ def analyse_xmr(
     for phase_value in sorted(work["phase"].unique()):
         phase_mask = work["phase"] == phase_value
         phase_values = values[phase_mask]
+        phase_valid_points = int(phase_values.notna().sum())
+
+        if phase_valid_points < min_points_for_spc:
+            work.loc[phase_mask, "phase_low_data"] = True
+            work.loc[phase_mask, "phase_low_data_warning"] = (
+                f"Phase {phase_value} has {phase_valid_points} valid observations "
+                f"(< {min_points_for_spc}); limits calculated with caution"
+            )
 
         # Compute baseline for this phase
         baseline_mask_phase = _compute_baseline_mask(
