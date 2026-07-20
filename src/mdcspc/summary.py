@@ -254,7 +254,35 @@ def _classify_variation_for_last_point(
             side = "neutral"
 
         dir_norm = (direction or "").lower()
-        if dir_norm == "higher_is_better":
+
+        trend_direction = None
+        if sc_label.strip().lower() == "trend":
+            trend_rows = non_null[
+                non_null["special_cause_label"].fillna("").astype(str).str.strip().str.lower()
+                == "trend"
+            ]
+            if not trend_rows.empty:
+                trend_start = trend_rows.iloc[-1][value_col]
+                for pos in range(len(non_null) - 2, -1, -1):
+                    row = non_null.iloc[pos]
+                    label = str(row.get("special_cause_label", "") or "").strip().lower()
+                    if label != "trend":
+                        break
+                    trend_start = row[value_col]
+
+                if last_value > trend_start:
+                    trend_direction = "up"
+                elif last_value < trend_start:
+                    trend_direction = "down"
+
+        if trend_direction is not None and dir_norm != "neutral":
+            improvement = (
+                (dir_norm == "higher_is_better" and trend_direction == "up")
+                or (dir_norm == "lower_is_better" and trend_direction == "down")
+            )
+            v_key = "improvement" if improvement else "concern"
+            colour = "blue" if improvement else "orange"
+        elif dir_norm == "higher_is_better":
             if side == "high":
                 v_key = "improvement"
                 colour = "blue"
