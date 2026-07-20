@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from .errors import duplicate_period_values_for_series
+
 
 # --------------------------------------------------------------------
 # Data classes
@@ -61,6 +63,20 @@ def _prepare_series(
     if index_col is not None:
         if index_col not in work.columns:
             raise ValueError(f"index_col '{index_col}' not found in DataFrame")
+
+        duplicate_mask = work[index_col].duplicated(keep=False)
+        if duplicate_mask.any():
+            duplicate_values = (
+                work.loc[duplicate_mask, index_col]
+                .drop_duplicates()
+                .astype(str)
+                .tolist()
+            )
+            raise duplicate_period_values_for_series(
+                index_col=index_col,
+                duplicate_values=duplicate_values,
+            )
+
         work = work.sort_values(index_col)
         work = work.set_index(index_col)
     else:

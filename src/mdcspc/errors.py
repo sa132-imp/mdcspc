@@ -169,3 +169,27 @@ def could_not_parse_numeric_values_for_export(
         ),
     )
 
+
+def duplicate_period_values_for_series(
+    index_col: str,
+    duplicate_values: list[str],
+) -> MdcSpcError:
+    shown_values = duplicate_values[:5]
+    values_text = "\n".join(f"- {value}" for value in shown_values)
+
+    return MdcSpcError(
+        code="MDCSPC007",
+        title="Duplicate period values within a series",
+        detail=(
+            "MDCSPC found more than one row for the same period within a single series.\n\n"
+            f"Date/index column: {index_col}\n\n"
+            "Example duplicate periods:\n"
+            f"{values_text}"
+        ),
+        fix=(
+            "Keep only one value for each period within each series.\n"
+            "Do not simply remove a row unless you have confirmed which value is correct.\n"
+            "The same period may appear in different series."
+        ),
+    )
+
