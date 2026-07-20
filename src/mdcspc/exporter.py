@@ -1377,9 +1377,6 @@ def export_spc_from_csv(
             for w in detection.warnings:
                 print(f"[WARN] {w}")
 
-            for w in warnings_list:
-                print(f"[WARN] {w}")
-
         # ------------------------------------------------------------
         # VALUE CLEANING
         # ------------------------------------------------------------
@@ -1442,6 +1439,19 @@ def export_spc_from_csv(
         if not resolved_group_cols:
             df["MetricName"] = "Series1"
             resolved_group_cols = ["MetricName"]
+
+        for col in resolved_group_cols:
+            blank_group_mask = df[col].isna() | (df[col].astype(str).str.strip() == "")
+            blank_count = int(blank_group_mask.sum())
+
+            if 0 < blank_count < len(df):
+                warnings_list.append(
+                    f"Group column '{col}' contains {blank_count} blank values. "
+                    "These rows will be analysed as an unnamed group."
+                )
+
+        for w in warnings_list:
+            print(f"[WARN] {w}")
 
         _log(quiet, f"[INFO] Using group columns: {resolved_group_cols}")
 
