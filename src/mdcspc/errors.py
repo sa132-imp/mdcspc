@@ -216,3 +216,27 @@ def invalid_phase_starts(
         ),
     )
 
+
+
+def invalid_infinite_values(
+    value_col: str,
+    invalid_values: list[str],
+) -> MdcSpcError:
+    shown_values = invalid_values[:5]
+    values_text = "\n".join(f"- {value}" for value in shown_values)
+
+    return MdcSpcError(
+        code="MDCSPC009",
+        title="Infinite values are not allowed",
+        detail=(
+            "MDCSPC found infinite values in the data.\n\n"
+            f"Value column: {value_col}\n\n"
+            "Example problem values:\n"
+            f"{values_text}"
+        ),
+        fix=(
+            "Replace infinite values with a valid numeric value or a missing value "
+            "if appropriate.\n"
+            "Do not use infinity as a measurement."
+        ),
+    )

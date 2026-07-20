@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from .errors import (
     duplicate_period_values_for_series,
     invalid_phase_starts,
+    invalid_infinite_values,
 )
 
 
@@ -87,6 +88,18 @@ def _prepare_series(
 
     work = work[[value_col]].copy()
     work[value_col] = work[value_col].astype(float)
+
+    infinite_mask = ~np.isfinite(work[value_col]) & work[value_col].notna()
+    if infinite_mask.any():
+        infinite_values = (
+            work.loc[infinite_mask, value_col]
+            .astype(str)
+            .tolist()
+        )
+        raise invalid_infinite_values(
+            value_col=value_col,
+            invalid_values=infinite_values,
+        )
 
     return work
 
