@@ -5,7 +5,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .errors import duplicate_period_values_for_series
+from .errors import (
+    duplicate_period_values_for_series,
+    invalid_phase_starts,
+)
 
 
 # --------------------------------------------------------------------
@@ -117,8 +120,28 @@ def _assign_phases(
     else:
         starts = pd.Index(list(phase_starts))
 
-    # Ensure sorted unique starts
-    starts = starts.sort_values().unique()
+    duplicate_mask = starts.duplicated(keep=False)
+    if duplicate_mask.any():
+        duplicate_values = starts[duplicate_mask].unique().astype(str).tolist()
+        raise invalid_phase_starts(
+            problem="MDCSPC found duplicate phase start values.",
+            values=duplicate_values,
+        )
+
+    starts = starts.sort_values()
+
+    missing_starts = starts[~starts.isin(index)]
+    if len(missing_starts) > 0:
+        raise invalid_phase_starts(
+            problem="Each phase start must match an actual observation in the series.",
+            values=missing_starts.astype(str).tolist(),
+        )
+
+    if starts[0] == index.min():
+        raise invalid_phase_starts(
+            problem="A phase start at the first observation would create an empty phase.",
+            values=[str(starts[0])],
+        )
 
     # Use searchsorted to count how many boundaries each index value is >=
     # and then add 1 to make phases 1-based.

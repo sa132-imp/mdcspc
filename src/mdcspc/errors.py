@@ -193,3 +193,26 @@ def duplicate_period_values_for_series(
         ),
     )
 
+
+def invalid_phase_starts(
+    problem: str,
+    values: list[str],
+) -> MdcSpcError:
+    shown_values = values[:5]
+    values_text = "\n".join(f"- {value}" for value in shown_values)
+
+    return MdcSpcError(
+        code="MDCSPC008",
+        title="Invalid phase start values",
+        detail=(
+            f"{problem}\n\n"
+            "Example phase start values:\n"
+            f"{values_text}"
+        ),
+        fix=(
+            "Each phase start must match an actual observation in the series.\n"
+            "Do not use the first observation as a phase start, because that would create an empty first phase.\n"
+            "Remove duplicate phase starts."
+        ),
+    )
+
