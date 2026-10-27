@@ -26,6 +26,7 @@ from .metric_config import load_metric_config, get_metric_config
 from .auto_detect import detect_columns
 
 from .xmr import analyse_xmr
+from .dates import parse_uk_dates
 
 import warnings
 from .errors import (
@@ -78,14 +79,13 @@ def _safe_filename(parts: Sequence[object]) -> str:
 # -------------------------------------------------------------------
 
 
-def _load_phase_config(
+def _read_phase_config(
     config_dir: Path,
     working_dir: Path,
-    group_cols: Sequence[str],
     quiet: bool = False,
-) -> Optional[Dict[Tuple, List[pd.Timestamp]]]:
+) -> Optional[pd.DataFrame]:
     """
-    Load optional phase configuration.
+    Read optional phase configuration, with PhaseStart parsed to dates.
 
     Preferred location:
         config/spc_phase_config.csv
@@ -94,8 +94,9 @@ def _load_phase_config(
         working/spc_phase_config.csv
 
     Expected columns:
-        group_cols (e.g. OrgCode, MetricName)
+        group columns (e.g. OrgCode, MetricName)
         PhaseStart
+        Annotation, ShowOnChart, AnnotationPosition (optional)
     """
     canonical_path = config_dir / "spc_phase_config.csv"
     legacy_path = working_dir / "spc_phase_config.csv"
@@ -116,44 +117,38 @@ def _load_phase_config(
 
     cfg = pd.read_csv(config_path)
 
-    missing = [gc for gc in group_cols if gc not in cfg.columns]
-    if missing:
-        raise ValueError(
-            f"Phase config is missing required group column(s): {missing}. "
-            f"Expected at least these columns: {list(group_cols) + ['PhaseStart']}"
-        )
-
     if "PhaseStart" not in cfg.columns:
         raise ValueError(
             "Phase config must contain a 'PhaseStart' column "
             "with the start date of each new phase."
         )
 
-    # Parse dates in a stable, UK-friendly way:
-    # - If they look like ISO (YYYY-MM-DD), parse with explicit format.
-    # - Otherwise parse with dayfirst=True.
-    ps = cfg["PhaseStart"].astype(str).str.strip()
-    iso_mask = ps.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
+    # ISO dates are parsed as ISO; everything else day-first (UK).
+    cfg["PhaseStart"] = parse_uk_dates(cfg["PhaseStart"])
+    return cfg
 
-    phase_start = pd.Series([pd.NaT] * len(cfg), index=cfg.index, dtype="datetime64[ns]")
-    if iso_mask.any():
-        phase_start.loc[iso_mask] = pd.to_datetime(
-            ps.loc[iso_mask],
-            format="%Y-%m-%d",
-            errors="raise",
-        )
-    if (~iso_mask).any():
-        phase_start.loc[~iso_mask] = pd.to_datetime(
-            ps.loc[~iso_mask],
-            dayfirst=True,
-            errors="raise",
-        )
 
-    cfg["PhaseStart"] = phase_start.dt.normalize()
+def _load_phase_config(
+    phase_cfg: Optional[pd.DataFrame],
+    group_cols: Sequence[str],
+    quiet: bool = False,
+) -> Optional[Dict[Tuple, List[pd.Timestamp]]]:
+    """
+    Build phase starts per group from a phase config read by _read_phase_config.
+    """
+    if phase_cfg is None:
+        return None
+
+    missing = [gc for gc in group_cols if gc not in phase_cfg.columns]
+    if missing:
+        raise ValueError(
+            f"Phase config is missing required group column(s): {missing}. "
+            f"Expected at least these columns: {list(group_cols) + ['PhaseStart']}"
+        )
 
     phase_starts: Dict[Tuple, List[pd.Timestamp]] = {}
 
-    grouped_cfg = cfg.groupby(list(group_cols), dropna=False)
+    grouped_cfg = phase_cfg.groupby(list(group_cols), dropna=False)
     for key, group_df in grouped_cfg:
         if not isinstance(key, tuple):
             key_tuple = (key,)
@@ -311,11 +306,7 @@ def _load_target_config(
         )
         return None
 
-    cfg = pd.read_csv(
-        config_path,
-        parse_dates=["EffectiveFrom"],
-        dayfirst=True,
-    )
+    cfg = pd.read_csv(config_path)
 
     required = ["MetricName", "EffectiveFrom", "TargetValue"]
     if "OrgCode" in group_cols:
@@ -328,6 +319,9 @@ def _load_target_config(
             "Expected at least: MetricName, EffectiveFrom, TargetValue, "
             "and OrgCode if using per-org targets."
         )
+
+    # ISO dates are parsed as ISO; everything else day-first (UK).
+    cfg["EffectiveFrom"] = parse_uk_dates(cfg["EffectiveFrom"])
 
     cfg["MetricName"] = cfg["MetricName"].astype(str).str.strip()
     if "OrgCode" in cfg.columns:
@@ -1396,36 +1390,18 @@ def export_spc_from_csv(
         # INDEX PARSING
         # ------------------------------------------------------------
 
-        s = df[resolved_index_col].astype(str).str.strip()
-        iso_mask = s.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
-
-        parsed = pd.Series([pd.NaT] * len(df), index=df.index, dtype="datetime64[ns]")
-
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
-
-                if iso_mask.any():
-                    parsed.loc[iso_mask] = pd.to_datetime(
-                        s.loc[iso_mask],
-                        format="%Y-%m-%d",
-                        errors="raise",
-                    )
-
-                if (~iso_mask).any():
-                    parsed.loc[~iso_mask] = pd.to_datetime(
-                        s.loc[~iso_mask],
-                        dayfirst=True,
-                        errors="raise",
-                    )
+                parsed = parse_uk_dates(df[resolved_index_col])
 
         except (TypeError, ValueError):
             raise could_not_parse_index_dates_for_export(
                 index_col=resolved_index_col,
-                bad_values=s.head(10).tolist(),
+                bad_values=df[resolved_index_col].astype(str).str.strip().head(10).tolist(),
             )
 
-        df[resolved_index_col] = parsed.dt.normalize()
+        df[resolved_index_col] = parsed
 
         # ------------------------------------------------------------
         # GROUP DETECTION
@@ -1465,9 +1441,12 @@ def export_spc_from_csv(
             _log(quiet, f"[INFO] metric_config: failed to load; using defaults. Error: {e}")
             metric_configs = None
 
-        phase_starts = _load_phase_config(
+        phase_cfg = _read_phase_config(
             config_dir=config_dir_path,
             working_dir=working_dir_path,
+        )
+        phase_starts = _load_phase_config(
+            phase_cfg=phase_cfg,
             group_cols=resolved_group_cols,
         )
 
@@ -1587,11 +1566,10 @@ def export_spc_from_csv(
 
             phase_annotations = []
 
-            phase_cfg_path = config_dir_path / "spc_phase_config.csv"
-            if phase_cfg_path.exists():
-                df_phase = pd.read_csv(phase_cfg_path)
-
-                df_series_phase = df_phase.copy()
+            # Reuse the phase config already read and date-parsed above, so
+            # annotations match the same phase starts used for the analysis.
+            if phase_cfg is not None:
+                df_series_phase = phase_cfg.copy()
 
                 for idx, col_name in enumerate(multi.config.group_cols):
                     if col_name in df_series_phase.columns and idx < len(key):
@@ -1600,7 +1578,9 @@ def export_spc_from_csv(
                         ].copy()
 
                 for _, row in df_series_phase.iterrows():
-                    phase_start = pd.to_datetime(row["PhaseStart"]).normalize()
+                    phase_start = row["PhaseStart"]
+                    if pd.isna(phase_start):
+                        continue
                     annotation_text = str(row.get("Annotation", "")).strip()
 
                     raw_show = str(row.get("ShowOnChart", "")).strip().lower()

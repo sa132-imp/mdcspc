@@ -23,6 +23,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 
+from .dates import parse_uk_dates
 from .exporter import export_spc_from_csv
 from .exporter import SpcPlotOptions
 
@@ -32,8 +33,8 @@ def _ensure_datetime_column(df: pd.DataFrame, col: str) -> pd.DataFrame:
     Ensure df[col] is datetime64, parsing deterministically.
 
     IMPORTANT:
-    - We use dayfirst=False to match the CSV exporter's behaviour that made the
-      CSV/DataFrame parity tests pass.
+    - We use the same rule as the CSV exporter: ISO dates are parsed as ISO,
+      everything else day-first (dd/mm/yyyy).
     - We also normalise to midnight so date-only semantics stay stable.
     """
     if col not in df.columns:
@@ -43,12 +44,12 @@ def _ensure_datetime_column(df: pd.DataFrame, col: str) -> pd.DataFrame:
 
     if not pd.api.types.is_datetime64_any_dtype(out[col]):
         try:
-            out[col] = pd.to_datetime(out[col], dayfirst=False, errors="raise")
+            out[col] = parse_uk_dates(out[col])
         except Exception:
             s = out[col].astype(str)
             bad_sample = s.head(10).tolist()
             raise ValueError(
-                f"Could not parse '{col}' values as dates using dayfirst=False. "
+                f"Could not parse '{col}' values as dates (expected YYYY-MM-DD or dd/mm/yyyy). "
                 f"Sample values (first 10): {bad_sample}"
             )
 

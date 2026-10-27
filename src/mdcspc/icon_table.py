@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 
 import pandas as pd
+from .dates import parse_uk_dates
 from .metric_config import MetricConfig
 
 
@@ -477,7 +478,7 @@ def export_icon_table(
                 continue
 
             try:
-                dt = pd.to_datetime(value, dayfirst=True)
+                dt = parse_uk_dates([value]).iloc[0]
             except Exception:
                 worksheet.write(row_idx, 1, str(value), latest_date_fmt)
                 continue
